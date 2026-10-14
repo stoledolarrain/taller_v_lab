@@ -31,6 +31,7 @@ INSTALLED_APPS = [
 
     # Local apps
     'apps.authentication',
+    'apps.groups',
 ]
 
 AUTH_USER_MODEL = 'authentication.User'

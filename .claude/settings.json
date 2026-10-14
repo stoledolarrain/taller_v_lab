@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json.schemastore.org/partial-claude-code-settings.json",
+  "permissions": {
+    "allowCommands": [
+      "python manage.py *",
+      "npm test*",
+      "npm run *",
+      "pytest *"
+    ]
+  }
+}

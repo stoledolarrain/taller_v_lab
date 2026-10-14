@@ -1,32 +1,49 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { AuthProvider } from './context/AuthContext';
+import { useAuth } from './hooks/useAuth';
+import { Navbar } from './components/layout/Navbar';
+import { LoginForm } from './components/auth/LoginForm';
+import { RegisterForm } from './components/auth/RegisterForm';
+import { UserDashboard } from './components/dashboard/UserDashboard';
 import './App.css';
 
-export default function App() {
-  const [count, setCount] = useState<number>(0);
+const MainContent: React.FC = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+  const [authView, setAuthView] = useState<'login' | 'register'>('login');
+
+  if (isLoading) {
+    return (
+      <div className="loading-state">
+        <div className="spinner"></div>
+        <p>Cargando información de sesión...</p>
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    return <UserDashboard />;
+  }
 
   return (
-    <div className="container">
-      <header className="header">
-        <h1>Pasanaku Digital</h1>
-        <p className="subtitle">
-          Plataforma de ahorro grupal rotativo · Frontend React + Vite
-        </p>
-      </header>
-
-      <main className="content">
-        <div className="card">
-          <h2>Panel de Control</h2>
-          <p>
-            Estado: <strong>Borrador inicial</strong>
-          </p>
-          <button className="primary-btn" onClick={() => setCount((c) => c + 1)}>
-            Contador de prueba: {count}
-          </button>
-          <p className="hint">
-            Edita <code>src/App.tsx</code> para comenzar a implementar las vistas del Pasanaku.
-          </p>
-        </div>
-      </main>
+    <div className="auth-wrapper">
+      {authView === 'login' ? (
+        <LoginForm onSwitchToRegister={() => setAuthView('register')} />
+      ) : (
+        <RegisterForm onSwitchToLogin={() => setAuthView('login')} />
+      )}
     </div>
+  );
+};
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <div className="app-root">
+        <Navbar />
+        <main className="main-viewport">
+          <MainContent />
+        </main>
+      </div>
+    </AuthProvider>
   );
 }

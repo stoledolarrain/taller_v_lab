@@ -5,15 +5,15 @@ description: Convenciones de arquitectura (MVVM en React + Service Layer en Djan
 
 # Convenciones y Buenas Prácticas · Pasanaku Digital
 
-## 1. Arquitectura General (MVVM)
+## 1. Arquitectura General (MVVM y Service Layer)
 
 ### Frontend (React + Vite + TypeScript)
-- **Model:** Tipos e interfaces en `src/models/` o `src/types/`. Clientes HTTP en `src/services/api/`.
-- **ViewModel:** Custom hooks (`src/hooks/` o `src/features/<feature>/hooks/`). Toda la lógica de estado, validación de UI y mutaciones reside en custom hooks.
-- **View:** Componentes funcionales en `src/components/` o `src/features/<feature>/components/`. Deben ser puros, consumiendo el ViewModel sin llamadas HTTP directas.
+- **Model:** Tipos e interfaces en `src/types/`. Clientes HTTP en `src/services/`.
+- **ViewModel:** Custom hooks (`src/hooks/`) y contextos (`src/context/`). Toda la lógica de estado, validación de UI y mutaciones reside en custom hooks.
+- **View:** Componentes funcionales en `src/components/`. Deben ser puros, consumiendo el ViewModel sin llamadas HTTP directas.
 
 ### Backend (Django REST Framework + PostgreSQL)
-- **Model:** Modelos de Django ORM con validaciones a nivel de modelo y restricciones de unicidad (`unique_together` o `UniqueConstraint`).
+- **Model:** Modelos de Django ORM con validaciones a nivel de modelo y restricciones de unicidad (`UniqueConstraint`).
 - **Services (Capa de Negocio / Mutaciones):** Siguiendo el *HackSoftware Django Styleguide*, toda operación de escritura/cambio de estado reside en `services.py` decorada con `@transaction.atomic`.
 - **Selectors (Capa de Lectura / Queries):** Consultas complejas residen en `selectors.py`.
 - **Views & Serializers:** Las vistas (`APIView` o `ViewSet`) solo validan la entrada vía Serializers y delegan la ejecución al servicio correspondiente.

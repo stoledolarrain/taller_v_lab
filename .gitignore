@@ -38,3 +38,7 @@ playwright-report/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Claude / AI Agent Local Config
+CLAUDE.local.md
+.claude/settings.local.json

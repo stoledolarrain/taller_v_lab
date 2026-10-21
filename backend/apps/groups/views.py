@@ -2,13 +2,16 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import ValidationError
 
 from .serializers import (
     PasanakuGroupListSerializer,
     PasanakuGroupDetailSerializer,
+    PasanakuGroupPreviewSerializer,
     PasanakuGroupCreateInputSerializer,
     PasanakuGroupUpdateInputSerializer,
     JoinGroupInputSerializer,
+    RemoveMemberInputSerializer,
 )
 from .services import (
     group_create,
@@ -16,8 +19,13 @@ from .services import (
     group_join_by_code,
     group_regenerate_invite_code,
     group_leave,
+    group_remove_member,
 )
-from .selectors import group_list_for_user, group_get_by_id
+from .selectors import (
+    group_list_for_user,
+    group_get_by_id,
+    group_get_by_invite_code,
+)
 
 
 class GroupListCreateAPIView(APIView):
@@ -99,6 +107,23 @@ class GroupDetailAPIView(APIView):
         )
 
 
+class GroupPreviewByCodeAPIView(APIView):
+    """
+    Previsualizar información de un grupo mediante su código de invitación antes de unirse.
+    GET /api/v1/groups/preview/?code=XXXX
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        code = request.query_params.get('code')
+        if not code:
+            raise ValidationError({'code': 'Debe proporcionar un código de invitación.'})
+
+        group = group_get_by_invite_code(invite_code=code)
+        serializer = PasanakuGroupPreviewSerializer(group)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 class GroupJoinAPIView(APIView):
     """
     Unirse a un grupo mediante código de invitación.
@@ -159,5 +184,28 @@ class GroupLeaveAPIView(APIView):
         group_leave(group=group, user=request.user)
         return Response(
             {'message': f'Has abandonado el grupo "{group.name}".'},
+            status=status.HTTP_200_OK,
+        )
+
+
+class GroupRemoveMemberAPIView(APIView):
+    """
+    Remover a un participante del grupo (Solo Administrador y en BORRADOR).
+    POST /api/v1/groups/<int:pk>/remove-member/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk: int):
+        group = group_get_by_id(group_id=pk, user=request.user)
+        serializer = RemoveMemberInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        group_remove_member(
+            group=group,
+            admin_user=request.user,
+            target_user_id=serializer.validated_data['user_id']
+        )
+        return Response(
+            {'message': 'Participante removido del grupo exitosamente.'},
             status=status.HTTP_200_OK,
         )

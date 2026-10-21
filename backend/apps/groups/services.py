@@ -35,7 +35,7 @@ def group_create(
     if total_members < 2:
         raise ValidationError({'total_members': 'El pasanaku requiere un mínimo de 2 participantes.'})
 
-    if start_date < timezone.now().date():
+    if start_date < timezone.localdate():
         raise ValidationError({'start_date': 'La fecha de inicio no puede estar en el pasado.'})
 
     group = PasanakuGroup.objects.create(
@@ -103,7 +103,7 @@ def group_update(
         group.periodicity = periodicity
 
     if start_date is not None:
-        if start_date < timezone.now().date():
+        if start_date < timezone.localdate():
             raise ValidationError({'start_date': 'La fecha de inicio no puede ser una fecha pasada.'})
         group.start_date = start_date
 
@@ -190,7 +190,7 @@ def group_leave(
 ) -> None:
     """
     Permite a un participante retirarse del grupo en estado BORRADOR.
-    Regla del PDF: Una vez iniciado el pasanaku, un participante no podrá retirarse libremente.
+    Regla del PDF: Una vez iniciado el pasanaku, un participante no podrá retirarse libremente si ello rompe los turnos.
     """
     membership = GroupMembership.objects.filter(group=group, user=user).first()
     if not membership:
@@ -208,3 +208,52 @@ def group_leave(
             )
 
     membership.delete()
+
+
+@transaction.atomic
+def group_remove_member(
+    *,
+    group: PasanakuGroup,
+    admin_user: User,
+    target_user_id: int
+) -> None:
+    """
+    Permite al administrador remover a un participante mientras el grupo se encuentre en estado BORRADOR.
+    """
+    membership = GroupMembership.objects.filter(group=group, user=admin_user).first()
+    if not membership or membership.role != MembershipRole.ADMIN:
+        raise PermissionDenied('Solo el administrador del grupo puede remover integrantes.')
+
+    if group.status != GroupStatus.BORRADOR:
+        raise ValidationError('No se pueden remover integrantes de un grupo que ya fue iniciado.')
+
+    target_membership = GroupMembership.objects.filter(group=group, user_id=target_user_id).first()
+    if not target_membership:
+        raise ValidationError('El usuario especificado no es miembro de este grupo.')
+
+    if target_membership.user == group.creator:
+        raise ValidationError('No se puede remover al creador del grupo.')
+
+    target_membership.delete()
+
+
+def group_validate_can_start(*, group: PasanakuGroup, admin_user: User) -> None:
+    """
+    Comprueba si el grupo cumple todas las condiciones para poder ser iniciado:
+    1. Quien solicita debe ser el Administrador.
+    2. El grupo debe estar en estado BORRADOR.
+    3. Todos los cupos requeridos deben estar ocupados por participantes.
+    """
+    membership = GroupMembership.objects.filter(group=group, user=admin_user).first()
+    if not membership or membership.role != MembershipRole.ADMIN:
+        raise PermissionDenied('Solo el administrador del grupo puede iniciar el pasanaku.')
+
+    if group.status != GroupStatus.BORRADOR:
+        raise ValidationError(f'El grupo ya se encuentra en estado {group.status}.')
+
+    if group.current_members_count < group.total_members:
+        faltantes = group.total_members - group.current_members_count
+        raise ValidationError(
+            f'El grupo no puede iniciar mientras existan posiciones necesarias sin participante. '
+            f'Faltan {faltantes} participante(s) para completar los {group.total_members} cupos.'
+        )

@@ -22,7 +22,9 @@ class GroupMembershipSerializer(serializers.ModelSerializer):
 class PasanakuGroupListSerializer(serializers.ModelSerializer):
     """Serializador compacto para listados de grupos."""
     current_members_count = serializers.IntegerField(read_only=True)
+    remaining_slots = serializers.IntegerField(read_only=True)
     is_full = serializers.BooleanField(read_only=True)
+    can_start = serializers.BooleanField(read_only=True)
     my_role = serializers.SerializerMethodField()
 
     class Meta:
@@ -37,7 +39,9 @@ class PasanakuGroupListSerializer(serializers.ModelSerializer):
             'start_date',
             'total_members',
             'current_members_count',
+            'remaining_slots',
             'is_full',
+            'can_start',
             'status',
             'my_role',
             'created_at',
@@ -54,7 +58,9 @@ class PasanakuGroupListSerializer(serializers.ModelSerializer):
 class PasanakuGroupDetailSerializer(serializers.ModelSerializer):
     """Serializador detallado con lista de integrantes y código de invitación."""
     current_members_count = serializers.IntegerField(read_only=True)
+    remaining_slots = serializers.IntegerField(read_only=True)
     is_full = serializers.BooleanField(read_only=True)
+    can_start = serializers.BooleanField(read_only=True)
     total_expected_per_round = serializers.DecimalField(
         max_digits=12,
         decimal_places=2,
@@ -75,7 +81,9 @@ class PasanakuGroupDetailSerializer(serializers.ModelSerializer):
             'start_date',
             'total_members',
             'current_members_count',
+            'remaining_slots',
             'is_full',
+            'can_start',
             'total_expected_per_round',
             'status',
             'invite_code',
@@ -91,6 +99,35 @@ class PasanakuGroupDetailSerializer(serializers.ModelSerializer):
             return False
         membership = obj.memberships.filter(user=user).first()
         return membership.role == MembershipRole.ADMIN if membership else False
+
+
+class PasanakuGroupPreviewSerializer(serializers.ModelSerializer):
+    """Información pública/previa de un grupo consultado vía código de invitación."""
+    current_members_count = serializers.IntegerField(read_only=True)
+    remaining_slots = serializers.IntegerField(read_only=True)
+    is_full = serializers.BooleanField(read_only=True)
+    creator_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PasanakuGroup
+        fields = [
+            'id',
+            'name',
+            'description',
+            'quota_amount',
+            'currency',
+            'periodicity',
+            'start_date',
+            'total_members',
+            'current_members_count',
+            'remaining_slots',
+            'is_full',
+            'status',
+            'creator_name',
+        ]
+
+    def get_creator_name(self, obj: PasanakuGroup) -> str:
+        return obj.creator.get_full_name() or obj.creator.username
 
 
 class PasanakuGroupCreateInputSerializer(serializers.Serializer):
@@ -116,3 +153,8 @@ class PasanakuGroupUpdateInputSerializer(serializers.Serializer):
 class JoinGroupInputSerializer(serializers.Serializer):
     """Validador para unirse a un pasanaku con código de invitación."""
     invite_code = serializers.CharField(max_length=12, trim_whitespace=True)
+
+
+class RemoveMemberInputSerializer(serializers.Serializer):
+    """Validador para expulsar o remover a un participante de un grupo."""
+    user_id = serializers.IntegerField()

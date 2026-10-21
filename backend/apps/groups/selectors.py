@@ -19,7 +19,7 @@ def group_list_for_user(*, user: User) -> QuerySet[PasanakuGroup]:
 def group_get_by_id(*, group_id: int, user: User) -> PasanakuGroup:
     """
     Obtiene un grupo por ID garantizando el aislamiento de datos.
-    Regla del PDF: Un usuario ajeno al grupo no podrá consultar su información.
+    Regla del PDF: Un usuario ajeno al grupo no podrá consultar su información (403 Forbidden).
     """
     group = PasanakuGroup.objects.filter(id=group_id).prefetch_related('memberships__user').first()
     if not group:
@@ -30,6 +30,15 @@ def group_get_by_id(*, group_id: int, user: User) -> PasanakuGroup:
     if not is_member and not user.is_staff:
         raise PermissionDenied('No tienes autorización para consultar la información de este grupo privado.')
 
+    return group
+
+
+def group_get_by_invite_code(*, invite_code: str) -> PasanakuGroup:
+    """Obtiene un grupo a partir de su código de invitación (para previsualización)."""
+    clean_code = invite_code.strip().upper()
+    group = PasanakuGroup.objects.filter(invite_code=clean_code).first()
+    if not group:
+        raise NotFound('El código de invitación no corresponde a ningún grupo de pasanaku.')
     return group
 
 

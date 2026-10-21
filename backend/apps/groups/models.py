@@ -117,6 +117,16 @@ class PasanakuGroup(models.Model):
         return self.current_members_count >= self.total_members
 
     @property
+    def remaining_slots(self) -> int:
+        """Cantidad de cupos aún disponibles para unirse."""
+        return max(0, self.total_members - self.current_members_count)
+
+    @property
+    def can_start(self) -> bool:
+        """El pasanaku solo puede iniciar en BORRADOR y con todos los cupos llenos."""
+        return self.is_draft and self.current_members_count == self.total_members
+
+    @property
     def total_expected_per_round(self):
         """Monto acumulado por ronda: cuota * cantidad de participantes."""
         return self.quota_amount * self.total_members

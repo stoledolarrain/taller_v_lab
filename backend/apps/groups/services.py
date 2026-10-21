@@ -1,5 +1,6 @@
 from decimal import Decimal
 from datetime import date
+from typing import Optional, Tuple
 import random
 from django.db import transaction
 from django.utils import timezone
@@ -10,8 +11,12 @@ from .models import (
     PasanakuGroup,
     GroupMembership,
     PasanakuTurn,
+    Round,
+    Contribution,
     GroupStatus,
     MembershipRole,
+    RoundStatus,
+    ContributionStatus,
     generate_invite_code,
 )
 
@@ -269,12 +274,10 @@ def turn_assign_manual(
             f'Debes asignar exactamente {group.total_members} turnos (se recibieron {len(assignments)}).'
         )
 
-    # Validar que los números de turno sean exactamente 1..N
     expected_turn_numbers = set(range(1, group.total_members + 1))
     provided_turn_numbers = set()
     assigned_user_ids = set()
 
-    # Obtener IDs de miembros válidos en el grupo
     valid_member_ids = set(group.memberships.values_list('user_id', flat=True))
 
     for item in assignments:
@@ -301,7 +304,6 @@ def turn_assign_manual(
     if assigned_user_ids != valid_member_ids:
         raise ValidationError('Todos los miembros del grupo deben tener un turno asignado.')
 
-    # Limpiar turnos previos y crear los nuevos atómicamente
     group.turns.all().delete()
 
     created_turns = [
@@ -343,13 +345,9 @@ def turn_raffle_auto(
             f'Faltan {faltantes} participante(s).'
         )
 
-    # Obtener todos los miembros
     member_user_ids = list(group.memberships.values_list('user_id', flat=True))
-
-    # Barajar aleatoriamente
     shuffled_user_ids = random.sample(member_user_ids, len(member_user_ids))
 
-    # Limpiar turnos previos si existían
     group.turns.all().delete()
 
     created_turns = [
@@ -365,19 +363,51 @@ def turn_raffle_auto(
 
 
 @transaction.atomic
+def round_create(
+    *,
+    group: PasanakuGroup,
+    round_number: int,
+    beneficiary: User,
+    start_date: date = None
+) -> Round:
+    """
+    Crea una nueva ronda y genera automáticamente las cuotas individuales
+    en estado PENDIENTE para todos los integrantes del grupo.
+    """
+    if start_date is None:
+        start_date = timezone.localdate()
+
+    round_obj = Round.objects.create(
+        group=group,
+        round_number=round_number,
+        beneficiary=beneficiary,
+        status=RoundStatus.ACTIVA,
+        expected_amount=group.total_expected_per_round,
+        start_date=start_date,
+    )
+
+    # Generar cuota para cada miembro del grupo
+    memberships = group.memberships.select_related('user').all()
+    for m in memberships:
+        Contribution.objects.create(
+            round=round_obj,
+            user=m.user,
+            amount=group.quota_amount,
+            status=ContributionStatus.PENDIENTE
+        )
+
+    return round_obj
+
+
+@transaction.atomic
 def group_start(
     *,
     group: PasanakuGroup,
     admin_user: User
 ) -> PasanakuGroup:
     """
-    Inicia oficialmente el pasanaku, congelando su configuración y sus turnos.
-    Reglas del negocio (PDF):
-    1. Solo el administrador puede iniciar el grupo.
-    2. El grupo debe estar en BORRADOR.
-    3. Todos los cupos deben estar llenos (total_members == current_members).
-    4. Todos los turnos deben estar asignados exactamente del 1 al N (sin vacíos ni duplicados).
-    5. Pasa el estado a INICIADO.
+    Inicia oficialmente el pasanaku, congelando su configuración y sus turnos,
+    y generando automáticamente la primera ronda y sus cuotas.
     """
     membership = GroupMembership.objects.filter(group=group, user=admin_user).first()
     if not membership or membership.role != MembershipRole.ADMIN:
@@ -402,4 +432,158 @@ def group_start(
     group.status = GroupStatus.INICIADO
     group.save(update_fields=['status', 'updated_at'])
 
+    # Generar automáticamente la Ronda 1 con el beneficiario del Turno 1
+    turn_1 = group.turns.select_related('user').get(turn_number=1)
+    round_create(
+        group=group,
+        round_number=1,
+        beneficiary=turn_1.user,
+        start_date=group.start_date
+    )
+
     return group
+
+
+@transaction.atomic
+def contribution_report_payment(
+    *,
+    contribution: Contribution,
+    user: User,
+    notes: str = ''
+) -> Contribution:
+    """
+    Registra/reporta el pago de una cuota por parte del participante.
+    """
+    # Verificar que el usuario sea el titular del aporte o admin del grupo
+    is_owner = contribution.user == user
+    is_admin = GroupMembership.objects.filter(
+        group=contribution.round.group,
+        user=user,
+        role=MembershipRole.ADMIN
+    ).exists()
+
+    if not (is_owner or is_admin or user.is_staff):
+        raise PermissionDenied('No tienes autorización para reportar el pago de este aporte.')
+
+    if not contribution.round.is_active:
+        raise ValidationError('No se pueden registrar pagos en una ronda que ya fue cerrada.')
+
+    if contribution.status == ContributionStatus.PAGADA:
+        raise ValidationError('Esta cuota ya se encuentra registrada como PAGADA.')
+
+    contribution.payment_date = timezone.now()
+    if notes:
+        contribution.notes = notes.strip()
+
+    contribution.save(update_fields=['payment_date', 'notes', 'updated_at'])
+    return contribution
+
+
+@transaction.atomic
+def contribution_validate_payment(
+    *,
+    contribution: Contribution,
+    admin_user: User
+) -> Contribution:
+    """
+    Valida un aporte cambiando su estado a PAGADA (solo Administrador).
+    Registra fecha de validación y usuario que validó.
+    """
+    is_admin = GroupMembership.objects.filter(
+        group=contribution.round.group,
+        user=admin_user,
+        role=MembershipRole.ADMIN
+    ).exists()
+
+    if not (is_admin or admin_user.is_staff):
+        raise PermissionDenied('Solo el administrador del grupo puede validar aportes.')
+
+    if not contribution.round.is_active:
+        raise ValidationError('No se pueden validar aportes de una ronda que ya ha sido cerrada.')
+
+    if contribution.status == ContributionStatus.PAGADA:
+        raise ValidationError('Este aporte ya se encuentra validado y marcado como PAGADO.')
+
+    now = timezone.now()
+    contribution.status = ContributionStatus.PAGADA
+    contribution.validation_date = now
+    contribution.validated_by = admin_user
+    if not contribution.payment_date:
+        contribution.payment_date = now
+
+    contribution.save(update_fields=['status', 'validation_date', 'validated_by', 'payment_date', 'updated_at'])
+    return contribution
+
+
+@transaction.atomic
+def round_close_and_advance(
+    *,
+    round_obj: Round,
+    admin_user: User
+) -> Tuple[Round, Optional[Round]]:
+    """
+    Cierra la ronda actual y avanza a la siguiente ronda de forma atómica.
+    Reglas críticas del negocio (PDF):
+    1. Solo el administrador puede cerrar la ronda.
+    2. La ronda debe estar ACTIVA.
+    3. BLOQUEO POR DEUDA: Prohibido cerrar la ronda o avanzar mientras existan cuotas en PENDIENTE.
+    4. Confirmar entrega del fondo acumulado al beneficiario.
+    5. Cierra la ronda actual (bloqueando modificaciones futuras).
+    6. Habilita/crea la siguiente ronda (Turno k+1).
+    7. Si todos los turnos fueron cubiertos, marca el grupo como FINALIZADO.
+    """
+    group = round_obj.group
+
+    is_admin = GroupMembership.objects.filter(
+        group=group,
+        user=admin_user,
+        role=MembershipRole.ADMIN
+    ).exists()
+
+    if not (is_admin or admin_user.is_staff):
+        raise PermissionDenied('Solo el administrador del grupo puede cerrar rondas y avanzar turnos.')
+
+    if not round_obj.is_active:
+        raise ValidationError('Esta ronda ya se encuentra cerrada.')
+
+    # Regla crítica: BLOQUEO POR DEUDA
+    if round_obj.has_pending_contributions:
+        pending_count = round_obj.contributions.filter(status=ContributionStatus.PENDIENTE).count()
+        raise ValidationError(
+            f'Bloqueo por deuda: No es posible cerrar la ronda ni avanzar al siguiente turno '
+            f'porque existen {pending_count} cuota(s) en estado PENDIENTE.'
+        )
+
+    # Confirmar entrega al beneficiario y cerrar ronda
+    now = timezone.now()
+    round_obj.delivered_to_beneficiary = True
+    round_obj.delivered_at = now
+    round_obj.status = RoundStatus.CERRADA
+    round_obj.closed_at = now
+    round_obj.save(update_fields=[
+        'delivered_to_beneficiary',
+        'delivered_at',
+        'status',
+        'closed_at',
+        'updated_at'
+    ])
+
+    next_round: Optional[Round] = None
+
+    # Verificar si quedan turnos pendientes
+    if round_obj.round_number < group.total_members:
+        next_round_number = round_obj.round_number + 1
+        next_turn = group.turns.select_related('user').get(turn_number=next_round_number)
+
+        next_round = round_create(
+            group=group,
+            round_number=next_round_number,
+            beneficiary=next_turn.user,
+            start_date=timezone.localdate()
+        )
+    else:
+        # Todos los turnos han sido completados y cerrados
+        group.status = GroupStatus.FINALIZADO
+        group.save(update_fields=['status', 'updated_at'])
+
+    return round_obj, next_round

@@ -14,6 +14,10 @@ from .serializers import (
     RemoveMemberInputSerializer,
     PasanakuTurnSerializer,
     TurnManualAssignInputSerializer,
+    RoundSerializer,
+    RoundDetailSerializer,
+    ContributionSerializer,
+    ContributionReportInputSerializer,
 )
 from .services import (
     group_create,
@@ -25,12 +29,21 @@ from .services import (
     turn_assign_manual,
     turn_raffle_auto,
     group_start,
+    contribution_report_payment,
+    contribution_validate_payment,
+    round_close_and_advance,
 )
 from .selectors import (
     group_list_for_user,
     group_get_by_id,
     group_get_by_invite_code,
     turn_list_for_group,
+    round_list_for_group,
+    round_get_current,
+    round_get_by_id,
+    contribution_get_by_id,
+    contribution_list_for_round,
+    contribution_list_for_user,
 )
 
 
@@ -298,3 +311,160 @@ class GroupStartAPIView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class GroupRoundListAPIView(APIView):
+    """
+    Listar las rondas de un grupo.
+    GET /api/v1/groups/<int:pk>/rounds/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk: int):
+        group = group_get_by_id(group_id=pk, user=request.user)
+        rounds = round_list_for_group(group=group, user=request.user)
+        serializer = RoundSerializer(rounds, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class GroupCurrentRoundAPIView(APIView):
+    """
+    Obtener la ronda activa actual de un grupo con el detalle de sus aportes.
+    GET /api/v1/groups/<int:pk>/rounds/current/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk: int):
+        group = group_get_by_id(group_id=pk, user=request.user)
+        current_round = round_get_current(group=group, user=request.user)
+        if not current_round:
+            return Response(
+                {'message': 'No existe ninguna ronda activa en este grupo.'},
+                status=status.HTTP_200_OK
+            )
+        serializer = RoundDetailSerializer(current_round)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class RoundDetailAPIView(APIView):
+    """
+    Consultar el detalle de una ronda específica y sus aportes.
+    GET /api/v1/rounds/<int:pk>/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk: int):
+        round_obj = round_get_by_id(round_id=pk, user=request.user)
+        serializer = RoundDetailSerializer(round_obj)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class RoundContributionsAPIView(APIView):
+    """
+    Listar los aportes de una ronda específica.
+    GET /api/v1/rounds/<int:pk>/contributions/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk: int):
+        round_obj = round_get_by_id(round_id=pk, user=request.user)
+        contributions = contribution_list_for_round(round_obj=round_obj, user=request.user)
+        serializer = ContributionSerializer(contributions, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class ContributionPayAPIView(APIView):
+    """
+    Reportar o registrar el pago de un aporte (por el participante o admin).
+    POST /api/v1/contributions/<int:pk>/pay/
+    Body: {"notes": "Comprobante de transferencia #12345"}
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk: int):
+        contribution = contribution_get_by_id(contribution_id=pk, user=request.user)
+        serializer = ContributionReportInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        updated_contrib = contribution_report_payment(
+            contribution=contribution,
+            user=request.user,
+            notes=serializer.validated_data.get('notes', '')
+        )
+        return Response(
+            {
+                'message': 'Pago de cuota reportado exitosamente.',
+                'contribution': ContributionSerializer(updated_contrib).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class ContributionValidateAPIView(APIView):
+    """
+    Validar un aporte y marcarlo como PAGADO (Solo Administrador).
+    POST /api/v1/contributions/<int:pk>/validate/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk: int):
+        contribution = contribution_get_by_id(contribution_id=pk, user=request.user)
+        validated_contrib = contribution_validate_payment(
+            contribution=contribution,
+            admin_user=request.user
+        )
+        return Response(
+            {
+                'message': 'Aporte validado exitosamente como PAGADO.',
+                'contribution': ContributionSerializer(validated_contrib).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class RoundCloseAndAdvanceAPIView(APIView):
+    """
+    Cerrar la ronda actual, confirmar entrega al beneficiario y avanzar al siguiente turno.
+    POST /api/v1/rounds/<int:pk>/close/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk: int):
+        round_obj = round_get_by_id(round_id=pk, user=request.user)
+        closed_round, next_round = round_close_and_advance(
+            round_obj=round_obj,
+            admin_user=request.user
+        )
+
+        response_data = {
+            'message': (
+                f'Ronda {closed_round.round_number} cerrada con éxito y '
+                f'monto de Bs {closed_round.expected_amount} entregado a {closed_round.beneficiary.username}.'
+            ),
+            'closed_round': RoundSerializer(closed_round).data,
+        }
+
+        if next_round:
+            response_data['next_round'] = RoundDetailSerializer(next_round).data
+            response_data['is_finished'] = False
+        else:
+            response_data['is_finished'] = True
+            response_data['group_status'] = 'FINALIZADO'
+            response_data['message'] += ' ¡Todos los turnos fueron completados y el pasanaku ha FINALIZADO!'
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+
+class UserContributionsAPIView(APIView):
+    """
+    Consultar todas las cuotas (pendientes y pagadas) del usuario autenticado.
+    GET /api/v1/users/me/contributions/?group_id=X
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        group_id_param = request.query_params.get('group_id')
+        group_id = int(group_id_param) if group_id_param and group_id_param.isdigit() else None
+        contributions = contribution_list_for_user(user=request.user, group_id=group_id)
+        serializer = ContributionSerializer(contributions, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

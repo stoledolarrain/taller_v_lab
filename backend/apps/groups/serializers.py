@@ -5,8 +5,12 @@ from .models import (
     PasanakuGroup,
     GroupMembership,
     PasanakuTurn,
+    Round,
+    Contribution,
     Periodicity,
     MembershipRole,
+    RoundStatus,
+    ContributionStatus,
 )
 
 
@@ -38,6 +42,105 @@ class PasanakuTurnSerializer(serializers.ModelSerializer):
             'created_at',
         ]
         read_only_fields = ['id', 'created_at']
+
+
+class ContributionSerializer(serializers.ModelSerializer):
+    """Serializador para cuotas individuales."""
+    user = UserSerializer(read_only=True)
+    validated_by = UserSerializer(read_only=True)
+    group_id = serializers.IntegerField(source='round.group_id', read_only=True)
+    round_number = serializers.IntegerField(source='round.round_number', read_only=True)
+
+    class Meta:
+        model = Contribution
+        fields = [
+            'id',
+            'group_id',
+            'round_id',
+            'round_number',
+            'user',
+            'amount',
+            'status',
+            'payment_date',
+            'validation_date',
+            'validated_by',
+            'notes',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = [
+            'id',
+            'group_id',
+            'round_id',
+            'round_number',
+            'amount',
+            'status',
+            'payment_date',
+            'validation_date',
+            'validated_by',
+            'created_at',
+            'updated_at',
+        ]
+
+
+class RoundSerializer(serializers.ModelSerializer):
+    """Serializador para rondas de pasanaku."""
+    beneficiary = UserSerializer(read_only=True)
+    total_collected = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    total_pending = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    has_pending_contributions = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = Round
+        fields = [
+            'id',
+            'group_id',
+            'round_number',
+            'beneficiary',
+            'status',
+            'expected_amount',
+            'total_collected',
+            'total_pending',
+            'has_pending_contributions',
+            'start_date',
+            'end_date',
+            'delivered_to_beneficiary',
+            'delivered_at',
+            'closed_at',
+            'created_at',
+        ]
+        read_only_fields = fields
+
+
+class RoundDetailSerializer(serializers.ModelSerializer):
+    """Serializador detallado para rondas con sus aportes individuales."""
+    beneficiary = UserSerializer(read_only=True)
+    total_collected = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    total_pending = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    has_pending_contributions = serializers.BooleanField(read_only=True)
+    contributions = ContributionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Round
+        fields = [
+            'id',
+            'group_id',
+            'round_number',
+            'beneficiary',
+            'status',
+            'expected_amount',
+            'total_collected',
+            'total_pending',
+            'has_pending_contributions',
+            'start_date',
+            'end_date',
+            'delivered_to_beneficiary',
+            'delivered_at',
+            'closed_at',
+            'contributions',
+            'created_at',
+        ]
+        read_only_fields = fields
 
 
 class PasanakuGroupListSerializer(serializers.ModelSerializer):
@@ -92,6 +195,7 @@ class PasanakuGroupDetailSerializer(serializers.ModelSerializer):
     )
     memberships = GroupMembershipSerializer(many=True, read_only=True)
     turns = PasanakuTurnSerializer(many=True, read_only=True)
+    current_round = serializers.SerializerMethodField()
     is_admin = serializers.SerializerMethodField()
 
     class Meta:
@@ -116,6 +220,7 @@ class PasanakuGroupDetailSerializer(serializers.ModelSerializer):
             'is_admin',
             'memberships',
             'turns',
+            'current_round',
             'created_at',
             'updated_at',
         ]
@@ -126,6 +231,12 @@ class PasanakuGroupDetailSerializer(serializers.ModelSerializer):
             return False
         membership = obj.memberships.filter(user=user).first()
         return membership.role == MembershipRole.ADMIN if membership else False
+
+    def get_current_round(self, obj: PasanakuGroup):
+        active_round = obj.rounds.filter(status=RoundStatus.ACTIVA).first()
+        if not active_round:
+            return None
+        return RoundSerializer(active_round).data
 
 
 class PasanakuGroupPreviewSerializer(serializers.ModelSerializer):
@@ -196,3 +307,8 @@ class TurnAssignmentItemInputSerializer(serializers.Serializer):
 class TurnManualAssignInputSerializer(serializers.Serializer):
     """Validador para la lista completa de asignaciones manuales de turnos."""
     assignments = TurnAssignmentItemInputSerializer(many=True)
+
+
+class ContributionReportInputSerializer(serializers.Serializer):
+    """Validador para registrar o reportar el pago de un aporte."""
+    notes = serializers.CharField(required=False, allow_blank=True, max_length=255, default='')

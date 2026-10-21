@@ -1,4 +1,5 @@
 import secrets
+from decimal import Decimal
 from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator
@@ -19,6 +20,16 @@ class Periodicity(models.TextChoices):
 class MembershipRole(models.TextChoices):
     ADMIN = 'ADMIN', 'Administrador del grupo'
     PARTICIPANTE = 'PARTICIPANTE', 'Participante'
+
+
+class RoundStatus(models.TextChoices):
+    ACTIVA = 'ACTIVA', 'Activa'
+    CERRADA = 'CERRADA', 'Cerrada'
+
+
+class ContributionStatus(models.TextChoices):
+    PENDIENTE = 'PENDIENTE', 'Pendiente'
+    PAGADA = 'PAGADA', 'Pagada'
 
 
 def generate_invite_code() -> str:
@@ -225,3 +236,169 @@ class PasanakuTurn(models.Model):
 
     def __str__(self):
         return f"Turno {self.turn_number}: {self.user.username} en {self.group.name}"
+
+
+class Round(models.Model):
+    """
+    Ciclo periódico de recaudación de cuotas con un beneficiario asignado.
+    """
+    group = models.ForeignKey(
+        PasanakuGroup,
+        on_delete=models.CASCADE,
+        related_name='rounds',
+        verbose_name='grupo de pasanaku'
+    )
+    round_number = models.PositiveIntegerField('número de ronda')
+    beneficiary = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='beneficiary_rounds',
+        verbose_name='beneficiario de la ronda'
+    )
+    status = models.CharField(
+        'estado de la ronda',
+        max_length=20,
+        choices=RoundStatus.choices,
+        default=RoundStatus.ACTIVA
+    )
+    expected_amount = models.DecimalField(
+        'monto total esperado',
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(0.01)],
+        help_text='Total esperado a recaudar (cuota * número de integrantes).'
+    )
+    start_date = models.DateField('fecha de inicio de la ronda')
+    end_date = models.DateField('fecha límite de la ronda', null=True, blank=True)
+
+    delivered_to_beneficiary = models.BooleanField(
+        'entrega confirmada al beneficiario',
+        default=False
+    )
+    delivered_at = models.DateTimeField(
+        'fecha de entrega del fondo',
+        null=True,
+        blank=True
+    )
+    closed_at = models.DateTimeField(
+        'fecha de cierre de ronda',
+        null=True,
+        blank=True
+    )
+
+    created_at = models.DateTimeField('fecha de creación', auto_now_add=True)
+    updated_at = models.DateTimeField('última modificación', auto_now=True)
+
+    class Meta:
+        verbose_name = 'Ronda de Pasanaku'
+        verbose_name_plural = 'Rondas de Pasanaku'
+        ordering = ['round_number']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['group', 'round_number'],
+                name='unique_round_number_in_group'
+            )
+        ]
+
+    def __str__(self):
+        return f"Ronda {self.round_number} ({self.status}) - {self.group.name} - Beneficiario: {self.beneficiary.username}"
+
+    @property
+    def is_active(self) -> bool:
+        return self.status == RoundStatus.ACTIVA
+
+    @property
+    def is_closed(self) -> bool:
+        return self.status == RoundStatus.CERRADA
+
+    @property
+    def total_collected(self) -> Decimal:
+        """Suma de cuotas en estado PAGADA."""
+        paid_sum = self.contributions.filter(
+            status=ContributionStatus.PAGADA
+        ).aggregate(total=models.Sum('amount'))['total']
+        return paid_sum or Decimal('0.00')
+
+    @property
+    def total_pending(self) -> Decimal:
+        """Suma de cuotas en estado PENDIENTE."""
+        pending_sum = self.contributions.filter(
+            status=ContributionStatus.PENDIENTE
+        ).aggregate(total=models.Sum('amount'))['total']
+        return pending_sum or Decimal('0.00')
+
+    @property
+    def has_pending_contributions(self) -> bool:
+        """Determina si la ronda tiene cuotas pendientes de pago."""
+        return self.contributions.filter(status=ContributionStatus.PENDIENTE).exists()
+
+
+class Contribution(models.Model):
+    """
+    Cuota individual que un participante debe aportar en una ronda específica.
+    """
+    round = models.ForeignKey(
+        Round,
+        on_delete=models.CASCADE,
+        related_name='contributions',
+        verbose_name='ronda'
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='contributions',
+        verbose_name='participante'
+    )
+    amount = models.DecimalField(
+        'monto del aporte',
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0.01)]
+    )
+    status = models.CharField(
+        'estado del aporte',
+        max_length=20,
+        choices=ContributionStatus.choices,
+        default=ContributionStatus.PENDIENTE
+    )
+    payment_date = models.DateTimeField(
+        'fecha de pago/reporte',
+        null=True,
+        blank=True
+    )
+    validation_date = models.DateTimeField(
+        'fecha de validación por admin',
+        null=True,
+        blank=True
+    )
+    validated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='validated_contributions',
+        verbose_name='administrador validador'
+    )
+    notes = models.CharField(
+        'notas o comprobante de pago',
+        max_length=255,
+        blank=True,
+        default=''
+    )
+
+    created_at = models.DateTimeField('fecha de creación', auto_now_add=True)
+    updated_at = models.DateTimeField('última modificación', auto_now=True)
+
+    class Meta:
+        verbose_name = 'Aporte de Pasanaku'
+        verbose_name_plural = 'Aportes de Pasanaku'
+        ordering = ['round', 'user']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['round', 'user'],
+                name='unique_user_contribution_per_round'
+            )
+        ]
+
+    def __str__(self):
+        return f"Aporte {self.user.username} - Ronda {self.round.round_number}: {self.amount} Bs ({self.status})"

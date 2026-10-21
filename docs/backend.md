@@ -69,15 +69,6 @@ cd backend
 pip install -r requirements.txt
 ```
 
-Las dependencias principales son:
-- `django>=5.1,<6.0`: Framework web principal.
-- `djangorestframework>=3.15.0`: Toolkit para construir la API REST.
-- `djangorestframework-simplejwt>=5.3.0`: Autenticación basada en JSON Web Tokens (JWT).
-- `django-cors-headers>=4.4.0`: Manejo de CORS para comunicación con el frontend Vite/React.
-- `psycopg2-binary>=2.9.9`: Driver para PostgreSQL.
-- `python-dotenv>=1.0.1`: Carga de variables de entorno desde `.env`.
-- `pytest` y `pytest-django`: Framework y plugin para pruebas automatizadas.
-
 ---
 
 ## 4. Configuración de Base de Datos
@@ -105,17 +96,6 @@ else:
     }
 ```
 
-Para usar PostgreSQL en desarrollo local, crea un archivo `.env` dentro de `backend/` con:
-```env
-DB_NAME=pasanaku_db
-DB_USER=postgres
-DB_PASSWORD=tu_password
-DB_HOST=localhost
-DB_PORT=5432
-DJANGO_DEBUG=True
-DJANGO_SECRET_KEY=clave-secreta-desarrollo
-```
-
 ---
 
 ## 5. Ejecución del Servidor
@@ -125,44 +105,63 @@ DJANGO_SECRET_KEY=clave-secreta-desarrollo
 python manage.py migrate
 ```
 
-### 5.2. Crear superusuario (opcional para acceder a `/admin/`)
-```bash
-python manage.py createsuperuser
-```
-
-### 5.3. Iniciar el servidor de desarrollo
+### 5.2. Iniciar el servidor de desarrollo
 ```bash
 python manage.py runserver
 ```
 El backend estará disponible en: **`http://127.0.0.1:8000/`**
 
-Endpoints principales expuestos:
-- **Autenticación:**
-  - `POST /api/v1/auth/register/` — Registro de nuevo usuario (requiere `ci`, `phone_number`, `email`, `password`).
-  - `POST /api/v1/auth/login/` — Inicio de sesión y obtención de tokens JWT (`access` y `refresh`).
-  - `POST /api/v1/auth/token/refresh/` — Renovación del token de acceso expirado.
-  - `GET /api/v1/auth/me/` — Datos del usuario autenticado (requiere header `Authorization: Bearer <token>`).
-- **Grupos:**
-  - `GET / POST /api/v1/groups/` — Listar y crear grupos de pasanaku.
-  - `GET /api/v1/groups/<id>/` — Detalle del grupo (con control de acceso a miembros).
-  - `POST /api/v1/groups/join/` — Unirse mediante código de invitación.
-- **Administración:**
-  - `http://127.0.0.1:8000/admin/` — Panel de administración de Django.
+---
+
+## 6. Catálogo Completo de Endpoints REST
+
+### 6.1. Autenticación (`/api/v1/auth/`)
+- `POST /api/v1/auth/register/` — Registro de nuevo integrante (con CI boliviano y teléfono).
+- `POST /api/v1/auth/login/` — Inicio de sesión y obtención de tokens JWT (`access` y `refresh`).
+- `POST /api/v1/auth/token/refresh/` — Renovación del token de acceso expirado.
+- `GET /api/v1/auth/me/` — Datos del usuario autenticado.
+
+### 6.2. Grupos y Membresías (`/api/v1/groups/`)
+- `GET /api/v1/groups/` — Listar grupos donde participa el usuario autenticado.
+- `POST /api/v1/groups/` — Crear grupo de pasanaku en estado `BORRADOR`.
+- `GET /api/v1/groups/<id>/` — Detalle del grupo (con lista de integrantes, cupos y turnos).
+- `PATCH /api/v1/groups/<id>/` — Editar configuración (solo en `BORRADOR` por el admin).
+- `GET /api/v1/groups/preview/?code=XXXX` — Previsualizar grupo antes de unirse.
+- `POST /api/v1/groups/join/` — Unirse al grupo mediante código de invitación.
+- `POST /api/v1/groups/<id>/regenerate-code/` — Regenerar código de invitación (admin).
+- `POST /api/v1/groups/<id>/leave/` — Abandonar grupo (solo en `BORRADOR`).
+- `POST /api/v1/groups/<id>/remove-member/` — Expulsar integrante en borrador (admin).
+
+### 6.3. Turnos y Sorteo (`/api/v1/groups/<id>/turns/` y `/start/`)
+- `GET /api/v1/groups/<id>/turns/` — Listar orden de turnos asignados (1 a N).
+- `POST /api/v1/groups/<id>/turns/manual/` — Asignar turnos manualmente (1:1 estricto).
+- `POST /api/v1/groups/<id>/turns/raffle/` — Sorteo automático aleatorio de turnos.
+- `POST /api/v1/groups/<id>/start/` — Iniciar pasanaku (valida cupos llenos y turnos, genera Ronda 1).
+
+### 6.4. Rondas y Cuotas (`/api/v1/rounds/` y `/contributions/`)
+- `GET /api/v1/groups/<id>/rounds/` — Historial de rondas del grupo.
+- `GET /api/v1/groups/<id>/rounds/current/` — Ronda activa actual con sus cuotas.
+- `GET /api/v1/rounds/<id>/` — Detalle de una ronda y sus aportes.
+- `GET /api/v1/rounds/<id>/contributions/` — Listar cuotas de una ronda.
+- `POST /api/v1/contributions/<id>/pay/` — Reportar pago de cuota por el participante.
+- `POST /api/v1/contributions/<id>/validate/` — Validar cuota como `PAGADA` por el admin.
+- `POST /api/v1/rounds/<id>/close/` — Cerrar ronda con **bloqueo por deuda**, confirmar entrega a beneficiario y avanzar turno de forma atómica.
+- `GET /api/v1/users/me/contributions/` — Mis cuotas pendientes y pagadas a través de mis grupos.
+
+### 6.5. Métricas y Recordatorios Internos
+- `GET /api/v1/groups/<id>/summary/` — Balance financiero global, estado de ronda y lista de deudores.
+- `POST /api/v1/groups/<id>/reminders/` — Enviar recordatorios internos a los deudores de la ronda activa.
+- `GET /api/v1/users/me/reminders/` — Ver mis recordatorios recibidos.
+- `POST /api/v1/reminders/<id>/read/` — Marcar recordatorio como leído.
 
 ---
 
-## 6. Ejecución de Pruebas Automatizadas
+## 7. Ejecución de Pruebas Automatizadas
 
-El proyecto soporta tanto el runner nativo de Django como `pytest`:
-
-### Con Django Test Runner:
 ```bash
+# Con Django Test Runner:
 python manage.py test
-```
 
-### Con Pytest:
-Gracias al archivo `backend/pytest.ini`:
-```bash
+# Con Pytest:
 pytest
 ```
-Ambos métodos deben reportar todas las suites en verde (16 tests pasando entre modelos, servicios y endpoints de autenticación y grupos).

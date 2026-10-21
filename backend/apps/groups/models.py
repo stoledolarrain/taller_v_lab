@@ -123,8 +123,20 @@ class PasanakuGroup(models.Model):
 
     @property
     def can_start(self) -> bool:
-        """El pasanaku solo puede iniciar en BORRADOR y con todos los cupos llenos."""
-        return self.is_draft and self.current_members_count == self.total_members
+        """El pasanaku solo puede iniciar en BORRADOR, con cupos llenos y turnos asignados."""
+        return (
+            self.is_draft
+            and self.current_members_count == self.total_members
+            and self.has_all_turns_assigned
+        )
+
+    @property
+    def has_all_turns_assigned(self) -> bool:
+        """Comprueba si todos los turnos del 1 a total_members están asignados 1:1."""
+        if self.turns.count() != self.total_members:
+            return False
+        turn_numbers = set(self.turns.values_list('turn_number', flat=True))
+        return turn_numbers == set(range(1, self.total_members + 1))
 
     @property
     def total_expected_per_round(self):
@@ -170,3 +182,46 @@ class GroupMembership(models.Model):
 
     def __str__(self):
         return f"{self.user.username} en {self.group.name} como {self.role}"
+
+
+class PasanakuTurn(models.Model):
+    """
+    Asignación estricta de turno para la recepción del fondo en una ronda.
+    Reglas del negocio:
+    - Cada integrante debe aparecer exactamente una vez como beneficiario (1:1).
+    - Los turnos van de 1 a N (cantidad total de participantes).
+    - No puede haber turnos sin beneficiario ni beneficiarios con múltiples turnos.
+    """
+    group = models.ForeignKey(
+        PasanakuGroup,
+        on_delete=models.CASCADE,
+        related_name='turns',
+        verbose_name='grupo'
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='pasanaku_turns',
+        verbose_name='beneficiario'
+    )
+    turn_number = models.PositiveIntegerField('número de turno')
+    created_at = models.DateTimeField('fecha de asignación', auto_now_add=True)
+    updated_at = models.DateTimeField('última modificación', auto_now=True)
+
+    class Meta:
+        verbose_name = 'Turno de Pasanaku'
+        verbose_name_plural = 'Turnos de Pasanaku'
+        ordering = ['turn_number']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['group', 'turn_number'],
+                name='unique_turn_number_in_group'
+            ),
+            models.UniqueConstraint(
+                fields=['group', 'user'],
+                name='unique_user_turn_in_group'
+            )
+        ]
+
+    def __str__(self):
+        return f"Turno {self.turn_number}: {self.user.username} en {self.group.name}"

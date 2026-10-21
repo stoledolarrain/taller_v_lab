@@ -7,6 +7,10 @@ from .views import (
     GroupRegenerateInviteCodeAPIView,
     GroupLeaveAPIView,
     GroupRemoveMemberAPIView,
+    GroupTurnListAPIView,
+    GroupTurnManualAssignAPIView,
+    GroupTurnRaffleAPIView,
+    GroupStartAPIView,
 )
 
 app_name = 'groups'
@@ -19,4 +23,8 @@ urlpatterns = [
     path('<int:pk>/regenerate-code/', GroupRegenerateInviteCodeAPIView.as_view(), name='regenerate_code'),
     path('<int:pk>/leave/', GroupLeaveAPIView.as_view(), name='leave'),
     path('<int:pk>/remove-member/', GroupRemoveMemberAPIView.as_view(), name='remove_member'),
+    path('<int:pk>/turns/', GroupTurnListAPIView.as_view(), name='turns_list'),
+    path('<int:pk>/turns/manual/', GroupTurnManualAssignAPIView.as_view(), name='turns_manual'),
+    path('<int:pk>/turns/raffle/', GroupTurnRaffleAPIView.as_view(), name='turns_raffle'),
+    path('<int:pk>/start/', GroupStartAPIView.as_view(), name='start'),
 ]

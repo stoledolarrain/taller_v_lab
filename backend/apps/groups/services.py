@@ -1,5 +1,6 @@
 from decimal import Decimal
 from datetime import date
+import random
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError, PermissionDenied
@@ -8,6 +9,7 @@ from apps.authentication.models import User
 from .models import (
     PasanakuGroup,
     GroupMembership,
+    PasanakuTurn,
     GroupStatus,
     MembershipRole,
     generate_invite_code,
@@ -76,13 +78,10 @@ def group_update(
     Actualiza la configuración de un grupo.
     Regla crítica: solo modificable mientras esté en estado BORRADOR y por el Administrador.
     """
-    # Verificar si el usuario es administrador
     membership = GroupMembership.objects.filter(group=group, user=user).first()
     if not membership or membership.role != MembershipRole.ADMIN:
         raise PermissionDenied('Solo el administrador del grupo puede modificar su configuración.')
 
-    # Regla del PDF: Mientras el grupo se encuentre en estado BORRADOR se podrá modificar su configuración.
-    # Una vez iniciado, no deberá permitirse cambiar arbitrariamente el monto, periodicidad o turnos.
     if group.status != GroupStatus.BORRADOR:
         raise ValidationError(
             f'No es posible modificar la configuración: el grupo se encuentra en estado {group.status}.'
@@ -139,15 +138,12 @@ def group_join_by_code(
     if not group:
         raise ValidationError({'invite_code': 'El código de invitación no es válido o no existe.'})
 
-    # Regla: No unirse si el grupo ya arrancó
     if group.status != GroupStatus.BORRADOR:
         raise ValidationError('No puedes unirte a un grupo que ya ha sido iniciado o finalizado.')
 
-    # Regla del PDF: Un usuario no podrá pertenecer dos veces al mismo grupo.
     if GroupMembership.objects.filter(group=group, user=user).exists():
         raise ValidationError({'user': 'Ya eres parte de este grupo de pasanaku.'})
 
-    # Regla: Verificar cupos disponibles
     if group.is_full:
         raise ValidationError({
             'group': f'El grupo ya completó el cupo acordado de {group.total_members} participantes.'
@@ -190,7 +186,7 @@ def group_leave(
 ) -> None:
     """
     Permite a un participante retirarse del grupo en estado BORRADOR.
-    Regla del PDF: Una vez iniciado el pasanaku, un participante no podrá retirarse libremente si ello rompe los turnos.
+    Regla del PDF: Una vez iniciado el pasanaku, un participante no podrá retirarse libremente.
     """
     membership = GroupMembership.objects.filter(group=group, user=user).first()
     if not membership:
@@ -199,7 +195,6 @@ def group_leave(
     if group.status != GroupStatus.BORRADOR:
         raise ValidationError('Una vez iniciado el pasanaku, ningún participante puede retirarse libremente.')
 
-    # Si es el administrador creador
     if membership.role == MembershipRole.ADMIN:
         admin_count = group.memberships.filter(role=MembershipRole.ADMIN).count()
         if admin_count <= 1 and group.memberships.count() > 1:
@@ -207,6 +202,8 @@ def group_leave(
                 'Eres el único administrador. Debes asignar otro administrador antes de salir.'
             )
 
+    # Si tenía un turno asignado en borrador, se elimina
+    PasanakuTurn.objects.filter(group=group, user=user).delete()
     membership.delete()
 
 
@@ -234,15 +231,153 @@ def group_remove_member(
     if target_membership.user == group.creator:
         raise ValidationError('No se puede remover al creador del grupo.')
 
+    PasanakuTurn.objects.filter(group=group, user=target_membership.user).delete()
     target_membership.delete()
 
 
-def group_validate_can_start(*, group: PasanakuGroup, admin_user: User) -> None:
+@transaction.atomic
+def turn_assign_manual(
+    *,
+    group: PasanakuGroup,
+    admin_user: User,
+    assignments: list[dict]
+) -> list[PasanakuTurn]:
     """
-    Comprueba si el grupo cumple todas las condiciones para poder ser iniciado:
-    1. Quien solicita debe ser el Administrador.
-    2. El grupo debe estar en estado BORRADOR.
-    3. Todos los cupos requeridos deben estar ocupados por participantes.
+    Asigna turnos manualmente a los participantes del pasanaku.
+    Reglas del PDF:
+    - Solo en estado BORRADOR y por el Administrador.
+    - El grupo debe tener todos sus cupos completados antes de definir turnos.
+    - Cada integrante debe aparecer exactamente una vez como beneficiario (1:1).
+    - Los números de turno deben ser exactamente del 1 al N sin huecos ni repeticiones.
+    """
+    membership = GroupMembership.objects.filter(group=group, user=admin_user).first()
+    if not membership or membership.role != MembershipRole.ADMIN:
+        raise PermissionDenied('Solo el administrador del grupo puede organizar los turnos.')
+
+    if group.status != GroupStatus.BORRADOR:
+        raise ValidationError('No se pueden modificar los turnos de un grupo que ya ha sido iniciado.')
+
+    if not group.is_full:
+        faltantes = group.total_members - group.current_members_count
+        raise ValidationError(
+            f'Deben completarse los {group.total_members} cupos antes de organizar turnos. '
+            f'Faltan {faltantes} participante(s).'
+        )
+
+    if len(assignments) != group.total_members:
+        raise ValidationError(
+            f'Debes asignar exactamente {group.total_members} turnos (se recibieron {len(assignments)}).'
+        )
+
+    # Validar que los números de turno sean exactamente 1..N
+    expected_turn_numbers = set(range(1, group.total_members + 1))
+    provided_turn_numbers = set()
+    assigned_user_ids = set()
+
+    # Obtener IDs de miembros válidos en el grupo
+    valid_member_ids = set(group.memberships.values_list('user_id', flat=True))
+
+    for item in assignments:
+        u_id = item.get('user_id')
+        t_num = item.get('turn_number')
+
+        if u_id not in valid_member_ids:
+            raise ValidationError(f'El usuario con ID {u_id} no es miembro de este grupo.')
+
+        if u_id in assigned_user_ids:
+            raise ValidationError(f'El usuario con ID {u_id} no puede tener asignado más de un turno.')
+
+        if t_num in provided_turn_numbers:
+            raise ValidationError(f'El número de turno {t_num} está duplicado.')
+
+        assigned_user_ids.add(u_id)
+        provided_turn_numbers.add(t_num)
+
+    if provided_turn_numbers != expected_turn_numbers:
+        raise ValidationError(
+            f'Los números de turno deben cubrir exactamente del 1 al {group.total_members} sin huecos.'
+        )
+
+    if assigned_user_ids != valid_member_ids:
+        raise ValidationError('Todos los miembros del grupo deben tener un turno asignado.')
+
+    # Limpiar turnos previos y crear los nuevos atómicamente
+    group.turns.all().delete()
+
+    created_turns = [
+        PasanakuTurn.objects.create(
+            group=group,
+            user_id=item['user_id'],
+            turn_number=item['turn_number']
+        )
+        for item in sorted(assignments, key=lambda x: x['turn_number'])
+    ]
+
+    return created_turns
+
+
+@transaction.atomic
+def turn_raffle_auto(
+    *,
+    group: PasanakuGroup,
+    admin_user: User
+) -> list[PasanakuTurn]:
+    """
+    Sortea aleatoriamente los turnos entre todos los integrantes del pasanaku.
+    Reglas del PDF:
+    - Solo en estado BORRADOR y por el Administrador.
+    - El grupo debe tener el cupo completo cubierto.
+    - Distribuye los turnos del 1 al N de forma 1:1 equitativa y aleatoria.
+    """
+    membership = GroupMembership.objects.filter(group=group, user=admin_user).first()
+    if not membership or membership.role != MembershipRole.ADMIN:
+        raise PermissionDenied('Solo el administrador del grupo puede realizar el sorteo de turnos.')
+
+    if group.status != GroupStatus.BORRADOR:
+        raise ValidationError('No se pueden sortear los turnos de un grupo que ya inició.')
+
+    if not group.is_full:
+        faltantes = group.total_members - group.current_members_count
+        raise ValidationError(
+            f'El sorteo requiere que el grupo esté completo ({group.total_members} participantes). '
+            f'Faltan {faltantes} participante(s).'
+        )
+
+    # Obtener todos los miembros
+    member_user_ids = list(group.memberships.values_list('user_id', flat=True))
+
+    # Barajar aleatoriamente
+    shuffled_user_ids = random.sample(member_user_ids, len(member_user_ids))
+
+    # Limpiar turnos previos si existían
+    group.turns.all().delete()
+
+    created_turns = [
+        PasanakuTurn.objects.create(
+            group=group,
+            user_id=user_id,
+            turn_number=turn_number
+        )
+        for turn_number, user_id in enumerate(shuffled_user_ids, start=1)
+    ]
+
+    return created_turns
+
+
+@transaction.atomic
+def group_start(
+    *,
+    group: PasanakuGroup,
+    admin_user: User
+) -> PasanakuGroup:
+    """
+    Inicia oficialmente el pasanaku, congelando su configuración y sus turnos.
+    Reglas del negocio (PDF):
+    1. Solo el administrador puede iniciar el grupo.
+    2. El grupo debe estar en BORRADOR.
+    3. Todos los cupos deben estar llenos (total_members == current_members).
+    4. Todos los turnos deben estar asignados exactamente del 1 al N (sin vacíos ni duplicados).
+    5. Pasa el estado a INICIADO.
     """
     membership = GroupMembership.objects.filter(group=group, user=admin_user).first()
     if not membership or membership.role != MembershipRole.ADMIN:
@@ -251,9 +386,20 @@ def group_validate_can_start(*, group: PasanakuGroup, admin_user: User) -> None:
     if group.status != GroupStatus.BORRADOR:
         raise ValidationError(f'El grupo ya se encuentra en estado {group.status}.')
 
-    if group.current_members_count < group.total_members:
+    if not group.is_full:
         faltantes = group.total_members - group.current_members_count
         raise ValidationError(
             f'El grupo no puede iniciar mientras existan posiciones necesarias sin participante. '
             f'Faltan {faltantes} participante(s) para completar los {group.total_members} cupos.'
         )
+
+    if not group.has_all_turns_assigned:
+        raise ValidationError(
+            f'No se puede iniciar el pasanaku: todos los {group.total_members} turnos deben ser '
+            f'asignados previamente (mediante asignación manual o sorteo).'
+        )
+
+    group.status = GroupStatus.INICIADO
+    group.save(update_fields=['status', 'updated_at'])
+
+    return group

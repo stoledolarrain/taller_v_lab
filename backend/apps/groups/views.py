@@ -12,6 +12,8 @@ from .serializers import (
     PasanakuGroupUpdateInputSerializer,
     JoinGroupInputSerializer,
     RemoveMemberInputSerializer,
+    PasanakuTurnSerializer,
+    TurnManualAssignInputSerializer,
 )
 from .services import (
     group_create,
@@ -20,11 +22,15 @@ from .services import (
     group_regenerate_invite_code,
     group_leave,
     group_remove_member,
+    turn_assign_manual,
+    turn_raffle_auto,
+    group_start,
 )
 from .selectors import (
     group_list_for_user,
     group_get_by_id,
     group_get_by_invite_code,
+    turn_list_for_group,
 )
 
 
@@ -207,5 +213,88 @@ class GroupRemoveMemberAPIView(APIView):
         )
         return Response(
             {'message': 'Participante removido del grupo exitosamente.'},
+            status=status.HTTP_200_OK,
+        )
+
+
+class GroupTurnListAPIView(APIView):
+    """
+    Listar los turnos configurados para un grupo.
+    GET /api/v1/groups/<int:pk>/turns/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk: int):
+        group = group_get_by_id(group_id=pk, user=request.user)
+        turns = turn_list_for_group(group=group, user=request.user)
+        serializer = PasanakuTurnSerializer(turns, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class GroupTurnManualAssignAPIView(APIView):
+    """
+    Asignar turnos manualmente a los participantes (Solo Administrador y en BORRADOR).
+    POST /api/v1/groups/<int:pk>/turns/manual/
+    Body: {"assignments": [{"user_id": 1, "turn_number": 1}, ...]}
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk: int):
+        group = group_get_by_id(group_id=pk, user=request.user)
+        serializer = TurnManualAssignInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        turns = turn_assign_manual(
+            group=group,
+            admin_user=request.user,
+            assignments=serializer.validated_data['assignments']
+        )
+        return Response(
+            {
+                'message': 'Turnos asignados manualmente con éxito.',
+                'turns': PasanakuTurnSerializer(turns, many=True).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class GroupTurnRaffleAPIView(APIView):
+    """
+    Sortear automáticamente los turnos entre los participantes (Solo Administrador y en BORRADOR).
+    POST /api/v1/groups/<int:pk>/turns/raffle/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk: int):
+        group = group_get_by_id(group_id=pk, user=request.user)
+        turns = turn_raffle_auto(group=group, admin_user=request.user)
+        return Response(
+            {
+                'message': 'Sorteo de turnos realizado exitosamente.',
+                'turns': PasanakuTurnSerializer(turns, many=True).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class GroupStartAPIView(APIView):
+    """
+    Iniciar oficialmente el pasanaku (Solo Administrador).
+    POST /api/v1/groups/<int:pk>/start/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk: int):
+        group = group_get_by_id(group_id=pk, user=request.user)
+        started_group = group_start(group=group, admin_user=request.user)
+        detail_serializer = PasanakuGroupDetailSerializer(
+            started_group,
+            context={'request': request}
+        )
+        return Response(
+            {
+                'message': f'¡El pasanaku "{started_group.name}" ha sido iniciado oficialmente!',
+                'group': detail_serializer.data,
+            },
             status=status.HTTP_200_OK,
         )

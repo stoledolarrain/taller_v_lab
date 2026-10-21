@@ -3,7 +3,7 @@ from django.db.models import QuerySet
 from rest_framework.exceptions import PermissionDenied, NotFound
 
 from apps.authentication.models import User
-from .models import PasanakuGroup, GroupMembership
+from .models import PasanakuGroup, GroupMembership, PasanakuTurn
 
 
 def group_list_for_user(*, user: User) -> QuerySet[PasanakuGroup]:
@@ -45,3 +45,15 @@ def group_get_by_invite_code(*, invite_code: str) -> PasanakuGroup:
 def group_get_membership(*, group: PasanakuGroup, user: User) -> Optional[GroupMembership]:
     """Obtiene la membresía del usuario en el grupo."""
     return GroupMembership.objects.filter(group=group, user=user).first()
+
+
+def turn_list_for_group(*, group: PasanakuGroup, user: User) -> QuerySet[PasanakuTurn]:
+    """
+    Lista los turnos del grupo ordenados secuencialmente (1..N).
+    Asegura aislamiento: el usuario debe ser miembro del grupo.
+    """
+    is_member = group.memberships.filter(user=user).exists()
+    if not is_member and not user.is_staff:
+        raise PermissionDenied('No tienes autorización para consultar los turnos de este grupo.')
+
+    return group.turns.select_related('user').order_by('turn_number')

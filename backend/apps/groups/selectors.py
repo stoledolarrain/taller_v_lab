@@ -1,5 +1,6 @@
 from typing import Optional
-from django.db.models import QuerySet
+from decimal import Decimal
+from django.db.models import QuerySet, Sum
 from rest_framework.exceptions import PermissionDenied, NotFound
 
 from apps.authentication.models import User
@@ -9,7 +10,9 @@ from .models import (
     PasanakuTurn,
     Round,
     Contribution,
+    InternalReminder,
     RoundStatus,
+    ContributionStatus,
 )
 
 
@@ -130,3 +133,69 @@ def contribution_list_for_user(*, user: User, group_id: Optional[int] = None) ->
     if group_id:
         qs = qs.filter(round__group_id=group_id)
     return qs.order_by('-round__start_date')
+
+
+def group_get_financial_summary(*, group: PasanakuGroup, user: User) -> dict:
+    """
+    Retorna el estado de cuenta y métricas de control financiero del pasanaku (PDF Sección 8):
+    - Total esperado, total registrado y monto pendiente general.
+    - Estado de la ronda actual y lista de participantes morosos (con cuotas pendientes).
+    - Historial de rondas y beneficiarios.
+    """
+    is_member = group.memberships.filter(user=user).exists()
+    if not is_member and not user.is_staff:
+        raise PermissionDenied('No tienes autorización para consultar las métricas de este grupo.')
+
+    total_expected_overall = group.total_expected_per_round * group.total_members
+    total_collected_overall = Contribution.objects.filter(
+        round__group=group,
+        status=ContributionStatus.PAGADA
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+    total_pending_overall = total_expected_overall - total_collected_overall
+
+    current_round = group.rounds.filter(status=RoundStatus.ACTIVA).first()
+    debtors = []
+    if current_round:
+        pending_contribs = current_round.contributions.filter(
+            status=ContributionStatus.PENDIENTE
+        ).select_related('user')
+        for c in pending_contribs:
+            debtors.append({
+                'contribution_id': c.id,
+                'user_id': c.user.id,
+                'username': c.user.username,
+                'full_name': c.user.get_full_name() or c.user.username,
+                'phone_number': c.user.phone_number,
+                'amount': c.amount,
+            })
+
+    return {
+        'group_id': group.id,
+        'group_name': group.name,
+        'status': group.status,
+        'quota_amount': group.quota_amount,
+        'total_members': group.total_members,
+        'total_expected_overall': total_expected_overall,
+        'total_collected_overall': total_collected_overall,
+        'total_pending_overall': max(Decimal('0.00'), total_pending_overall),
+        'current_round': {
+            'id': current_round.id,
+            'round_number': current_round.round_number,
+            'beneficiary': {
+                'id': current_round.beneficiary.id,
+                'username': current_round.beneficiary.username,
+                'full_name': current_round.beneficiary.get_full_name() or current_round.beneficiary.username,
+            },
+            'expected_amount': current_round.expected_amount,
+            'total_collected': current_round.total_collected,
+            'total_pending': current_round.total_pending,
+            'has_pending_contributions': current_round.has_pending_contributions,
+            'debtors': debtors,
+        } if current_round else None,
+    }
+
+
+def reminder_list_for_user(*, user: User) -> QuerySet[InternalReminder]:
+    """Lista las notificaciones internas recibidas por el usuario."""
+    return InternalReminder.objects.filter(recipient=user).select_related('group', 'round', 'sender').order_by('-created_at')

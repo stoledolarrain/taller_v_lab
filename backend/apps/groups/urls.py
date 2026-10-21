@@ -18,6 +18,8 @@ from .views import (
     RoundCloseAndAdvanceAPIView,
     ContributionPayAPIView,
     ContributionValidateAPIView,
+    GroupFinancialSummaryAPIView,
+    GroupSendRemindersAPIView,
 )
 
 app_name = 'groups'
@@ -43,6 +45,10 @@ urlpatterns = [
     # Rondas
     path('<int:pk>/rounds/', GroupRoundListAPIView.as_view(), name='rounds_list'),
     path('<int:pk>/rounds/current/', GroupCurrentRoundAPIView.as_view(), name='current_round'),
+
+    # Métricas y Recordatorios por Grupo
+    path('<int:pk>/summary/', GroupFinancialSummaryAPIView.as_view(), name='financial_summary'),
+    path('<int:pk>/reminders/', GroupSendRemindersAPIView.as_view(), name='send_reminders'),
 
     # Rutas anidadas de Rondas y Aportes
     path('rounds/<int:pk>/', RoundDetailAPIView.as_view(), name='round_detail'),

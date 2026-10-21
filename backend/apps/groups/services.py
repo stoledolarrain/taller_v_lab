@@ -4,7 +4,7 @@ from typing import Optional, Tuple
 import random
 from django.db import transaction
 from django.utils import timezone
-from rest_framework.exceptions import ValidationError, PermissionDenied
+from rest_framework.exceptions import ValidationError, PermissionDenied, NotFound
 
 from apps.authentication.models import User
 from .models import (
@@ -13,6 +13,7 @@ from .models import (
     PasanakuTurn,
     Round,
     Contribution,
+    InternalReminder,
     GroupStatus,
     MembershipRole,
     RoundStatus,
@@ -386,7 +387,6 @@ def round_create(
         start_date=start_date,
     )
 
-    # Generar cuota para cada miembro del grupo
     memberships = group.memberships.select_related('user').all()
     for m in memberships:
         Contribution.objects.create(
@@ -432,7 +432,6 @@ def group_start(
     group.status = GroupStatus.INICIADO
     group.save(update_fields=['status', 'updated_at'])
 
-    # Generar automáticamente la Ronda 1 con el beneficiario del Turno 1
     turn_1 = group.turns.select_related('user').get(turn_number=1)
     round_create(
         group=group,
@@ -454,7 +453,6 @@ def contribution_report_payment(
     """
     Registra/reporta el pago de una cuota por parte del participante.
     """
-    # Verificar que el usuario sea el titular del aporte o admin del grupo
     is_owner = contribution.user == user
     is_admin = GroupMembership.objects.filter(
         group=contribution.round.group,
@@ -554,7 +552,6 @@ def round_close_and_advance(
             f'porque existen {pending_count} cuota(s) en estado PENDIENTE.'
         )
 
-    # Confirmar entrega al beneficiario y cerrar ronda
     now = timezone.now()
     round_obj.delivered_to_beneficiary = True
     round_obj.delivered_at = now
@@ -570,7 +567,6 @@ def round_close_and_advance(
 
     next_round: Optional[Round] = None
 
-    # Verificar si quedan turnos pendientes
     if round_obj.round_number < group.total_members:
         next_round_number = round_obj.round_number + 1
         next_turn = group.turns.select_related('user').get(turn_number=next_round_number)
@@ -582,8 +578,73 @@ def round_close_and_advance(
             start_date=timezone.localdate()
         )
     else:
-        # Todos los turnos han sido completados y cerrados
         group.status = GroupStatus.FINALIZADO
         group.save(update_fields=['status', 'updated_at'])
 
     return round_obj, next_round
+
+
+@transaction.atomic
+def reminder_create_for_pending(
+    *,
+    group: PasanakuGroup,
+    admin_user: User,
+    custom_message: str = ''
+) -> list[InternalReminder]:
+    """
+    Genera notificaciones internas a todos los participantes con cuotas pendientes
+    en la ronda activa del grupo (PDF Sección 9).
+    """
+    is_admin = GroupMembership.objects.filter(
+        group=group,
+        user=admin_user,
+        role=MembershipRole.ADMIN
+    ).exists()
+
+    if not (is_admin or admin_user.is_staff):
+        raise PermissionDenied('Solo el administrador del grupo puede enviar recordatorios de pago.')
+
+    current_round = group.rounds.filter(status=RoundStatus.ACTIVA).first()
+    if not current_round:
+        raise ValidationError('No hay ninguna ronda activa actualmente en este grupo para generar recordatorios.')
+
+    pending_contributions = current_round.contributions.filter(
+        status=ContributionStatus.PENDIENTE
+    ).select_related('user')
+
+    if not pending_contributions.exists():
+        raise ValidationError('No existen participantes con cuotas pendientes en la ronda activa.')
+
+    created_reminders = []
+    for c in pending_contributions:
+        msg = (
+            custom_message.strip()
+            or f'Recordatorio: Tienes una cuota pendiente de Bs {c.amount} en la Ronda {current_round.round_number} de "{group.name}".'
+        )
+        reminder = InternalReminder.objects.create(
+            group=group,
+            round=current_round,
+            sender=admin_user,
+            recipient=c.user,
+            contribution=c,
+            message=msg,
+        )
+        created_reminders.append(reminder)
+
+    return created_reminders
+
+
+@transaction.atomic
+def reminder_mark_as_read(
+    *,
+    reminder_id: int,
+    user: User
+) -> InternalReminder:
+    """Marca un recordatorio como leído por su destinatario."""
+    reminder = InternalReminder.objects.filter(id=reminder_id, recipient=user).first()
+    if not reminder:
+        raise NotFound('El recordatorio solicitado no existe o no te pertenece.')
+
+    reminder.is_read = True
+    reminder.save(update_fields=['is_read'])
+    return reminder

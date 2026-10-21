@@ -18,6 +18,8 @@ from .serializers import (
     RoundDetailSerializer,
     ContributionSerializer,
     ContributionReportInputSerializer,
+    InternalReminderSerializer,
+    ReminderCreateInputSerializer,
 )
 from .services import (
     group_create,
@@ -32,6 +34,8 @@ from .services import (
     contribution_report_payment,
     contribution_validate_payment,
     round_close_and_advance,
+    reminder_create_for_pending,
+    reminder_mark_as_read,
 )
 from .selectors import (
     group_list_for_user,
@@ -44,6 +48,8 @@ from .selectors import (
     contribution_get_by_id,
     contribution_list_for_round,
     contribution_list_for_user,
+    group_get_financial_summary,
+    reminder_list_for_user,
 )
 
 
@@ -468,3 +474,74 @@ class UserContributionsAPIView(APIView):
         contributions = contribution_list_for_user(user=request.user, group_id=group_id)
         serializer = ContributionSerializer(contributions, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class GroupFinancialSummaryAPIView(APIView):
+    """
+    Estado de cuenta, totales financieros y deudores del grupo (PDF Sección 8).
+    GET /api/v1/groups/<int:pk>/summary/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk: int):
+        group = group_get_by_id(group_id=pk, user=request.user)
+        summary = group_get_financial_summary(group=group, user=request.user)
+        return Response(summary, status=status.HTTP_200_OK)
+
+
+class GroupSendRemindersAPIView(APIView):
+    """
+    Generar recordatorios internos a los deudores de la ronda activa (PDF Sección 9).
+    POST /api/v1/groups/<int:pk>/reminders/
+    Body: {"message": "Por favor realiza tu aporte antes del fin de semana"}
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk: int):
+        group = group_get_by_id(group_id=pk, user=request.user)
+        serializer = ReminderCreateInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        reminders = reminder_create_for_pending(
+            group=group,
+            admin_user=request.user,
+            custom_message=serializer.validated_data.get('message', '')
+        )
+        return Response(
+            {
+                'message': f'Se enviaron {len(reminders)} recordatorio(s) interno(s) con éxito.',
+                'reminders': InternalReminderSerializer(reminders, many=True).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class UserRemindersListAPIView(APIView):
+    """
+    Consultar las notificaciones internas recibidas por el usuario autenticado.
+    GET /api/v1/users/me/reminders/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        reminders = reminder_list_for_user(user=request.user)
+        serializer = InternalReminderSerializer(reminders, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class ReminderMarkReadAPIView(APIView):
+    """
+    Marcar un recordatorio interno como leído.
+    POST /api/v1/reminders/<int:pk>/read/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk: int):
+        reminder = reminder_mark_as_read(reminder_id=pk, user=request.user)
+        return Response(
+            {
+                'message': 'Recordatorio marcado como leído.',
+                'reminder': InternalReminderSerializer(reminder).data,
+            },
+            status=status.HTTP_200_OK,
+        )

@@ -402,3 +402,52 @@ class Contribution(models.Model):
 
     def __str__(self):
         return f"Aporte {self.user.username} - Ronda {self.round.round_number}: {self.amount} Bs ({self.status})"
+
+
+class InternalReminder(models.Model):
+    """
+    Notificación o recordatorio interno de cuotas pendientes (PDF Sección 9).
+    """
+    group = models.ForeignKey(
+        PasanakuGroup,
+        on_delete=models.CASCADE,
+        related_name='reminders',
+        verbose_name='grupo'
+    )
+    round = models.ForeignKey(
+        Round,
+        on_delete=models.CASCADE,
+        related_name='reminders',
+        verbose_name='ronda'
+    )
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='sent_reminders',
+        verbose_name='remitente'
+    )
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='received_reminders',
+        verbose_name='destinatario'
+    )
+    contribution = models.ForeignKey(
+        Contribution,
+        on_delete=models.CASCADE,
+        related_name='reminders',
+        null=True,
+        blank=True,
+        verbose_name='cuota relacionada'
+    )
+    message = models.CharField('mensaje del recordatorio', max_length=255)
+    is_read = models.BooleanField('leído', default=False)
+    created_at = models.DateTimeField('fecha de envío', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Recordatorio Interno'
+        verbose_name_plural = 'Recordatorios Internos'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Recordatorio para {self.recipient.username} en {self.group.name} (Ronda {self.round.round_number})"

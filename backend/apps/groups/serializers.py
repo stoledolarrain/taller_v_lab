@@ -7,6 +7,7 @@ from .models import (
     PasanakuTurn,
     Round,
     Contribution,
+    InternalReminder,
     Periodicity,
     MembershipRole,
     RoundStatus,
@@ -312,3 +313,30 @@ class TurnManualAssignInputSerializer(serializers.Serializer):
 class ContributionReportInputSerializer(serializers.Serializer):
     """Validador para registrar o reportar el pago de un aporte."""
     notes = serializers.CharField(required=False, allow_blank=True, max_length=255, default='')
+
+
+class InternalReminderSerializer(serializers.ModelSerializer):
+    """Serializador para notificaciones y recordatorios internos."""
+    sender = UserSerializer(read_only=True)
+    group_name = serializers.CharField(source='group.name', read_only=True)
+    round_number = serializers.IntegerField(source='round.round_number', read_only=True)
+
+    class Meta:
+        model = InternalReminder
+        fields = [
+            'id',
+            'group_id',
+            'group_name',
+            'round_id',
+            'round_number',
+            'sender',
+            'message',
+            'is_read',
+            'created_at',
+        ]
+        read_only_fields = fields
+
+
+class ReminderCreateInputSerializer(serializers.Serializer):
+    """Validador para enviar recordatorios a los deudores de la ronda actual."""
+    message = serializers.CharField(required=False, allow_blank=True, max_length=255, default='')

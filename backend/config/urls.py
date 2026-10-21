@@ -10,6 +10,8 @@ from apps.groups.views import (
     ContributionPayAPIView,
     ContributionValidateAPIView,
     UserContributionsAPIView,
+    UserRemindersListAPIView,
+    ReminderMarkReadAPIView,
 )
 
 urlpatterns = [
@@ -24,4 +26,6 @@ urlpatterns = [
     path('api/v1/contributions/<int:pk>/pay/', ContributionPayAPIView.as_view(), name='direct_contribution_pay'),
     path('api/v1/contributions/<int:pk>/validate/', ContributionValidateAPIView.as_view(), name='direct_contribution_validate'),
     path('api/v1/users/me/contributions/', UserContributionsAPIView.as_view(), name='user_contributions'),
+    path('api/v1/users/me/reminders/', UserRemindersListAPIView.as_view(), name='user_reminders'),
+    path('api/v1/reminders/<int:pk>/read/', ReminderMarkReadAPIView.as_view(), name='reminder_mark_read'),
 ]

@@ -1,13 +1,13 @@
 # Backend — Contexto Específico (Django REST Framework)
 
-Este subdirectorio contiene la API REST y la lógica de negocio central de **Pasanaku Digital**.
+Este subdirectorio contiene la API REST y la lógica de negocio central de **Pasanaku Digital**. Para la guía completa de resolución de problemas y despliegue, consultar `docs/backend.md`.
 
 ## 🛠 Stack y Herramientas
 - **Lenguaje:** Python 3.15
-- **Framework:** Django 6.x + Django REST Framework
+- **Framework:** Django 5.x (`django>=5.1,<6.0`) + Django REST Framework
 - **Autenticación:** JSON Web Tokens (`djangorestframework-simplejwt`)
-- **Base de Datos:** PostgreSQL (con SQLite como fallback de desarrollo)
-- **Testing:** Django TestCase / Pytest
+- **Base de Datos:** PostgreSQL (con SQLite como fallback automático de desarrollo)
+- **Testing:** Django TestCase / Pytest (configurado en `pytest.ini`)
 
 ---
 
@@ -42,8 +42,11 @@ apps/<nombre_app>/
 ## 🧪 Pruebas
 Para ejecutar las pruebas del backend:
 ```bash
+# Con runner nativo de Django:
 python manage.py test apps.authentication
 python manage.py test apps.groups
-# O todas las pruebas:
 python manage.py test
+
+# Con Pytest:
+pytest
 ```

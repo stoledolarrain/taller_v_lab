@@ -27,3 +27,11 @@ Pasanaku Digital es una plataforma web para digitalizar la organización y traza
 4. Un beneficiario por turno (sin vacíos ni repetidos).
 5. Prohibido cerrar una ronda con cuotas pendientes.
 6. Aislamiento de seguridad: usuarios no miembros reciben `403 Forbidden` al consultar información del grupo.
+
+## 5. Autenticación y Seguridad de la API
+- **Esquema de Autenticación:** JSON Web Tokens (JWT) gestionados mediante `djangorestframework-simplejwt`.
+- **Flujo de Acceso:**
+  1. `POST /api/v1/auth/login/` devuelve un par de tokens: `access` (duración: 1 día) y `refresh` (duración: 7 días).
+  2. Cada petición autenticada envía la cabecera `Authorization: Bearer <access_token>`.
+  3. `POST /api/v1/auth/token/refresh/` permite regenerar el `access_token` sin requerir reingreso de credenciales.
+- Para más detalles sobre la configuración, despliegue y resolución de incidencias del backend, consultar [backend.md](./backend.md).

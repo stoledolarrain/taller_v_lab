@@ -3,7 +3,7 @@
 Plataforma web para organizar, controlar y dar trazabilidad al ahorro grupal rotativo (**pasanaku**) en Bolivia. Proyecto final de la materia **Taller de Actualización V**.
 
 ## 🛠 Stack Tecnológico General
-- **Backend:** Python 3.15 + Django 6 + Django REST Framework + SimpleJWT.
+- **Backend:** Python 3.15 + Django 5.x + Django REST Framework + SimpleJWT (`djangorestframework-simplejwt`).
 - **Frontend:** React 19 + TypeScript + Vite.
 - **Base de Datos:** PostgreSQL (con fallback local a SQLite en desarrollo).
 - **Testing:** Pytest / Django TestCase (Backend) + Vitest / Playwright (Frontend/E2E).
@@ -15,7 +15,7 @@ El proyecto se organiza como un monorepo desacoplado:
 - `/backend`: API REST construida bajo el patrón **Service Layer** (*HackSoftware Django Styleguide*).
 - `/frontend`: SPA construida bajo el patrón **MVVM** (Model: types/api, ViewModel: hooks/context, View: componentes).
 - `/.claude`: Configuración, skills, agentes y comandos compartidos con el equipo.
-- `/docs`: Documentación técnica y reglas del negocio.
+- `/docs`: Documentación técnica y reglas del negocio (ver `docs/backend.md` para detalles del backend).
 
 ---
 
@@ -35,12 +35,13 @@ Cualquier código nuevo o refactorización DEBE respetar obligatoriamente estas 
 ### Backend (Django)
 ```bash
 cd backend
-.\.venv\Scripts\activate            # Windows
+.\.venv\Scripts\Activate.ps1        # Windows
 # source .venv/bin/activate         # Linux/macOS
-python manage.py runserver          # Servidor en http://127.0.0.1:8000/
-python manage.py makemigrations     # Crear migraciones
+pip install -r requirements.txt     # Instalar dependencias (incluye simplejwt)
 python manage.py migrate            # Aplicar migraciones
-python manage.py test               # Correr suite de pruebas
+python manage.py runserver          # Servidor en http://127.0.0.1:8000/
+python manage.py test               # Correr suite de pruebas Django
+pytest                              # Correr suite con Pytest (vía pytest.ini)
 ```
 
 ### Frontend (React + Vite)

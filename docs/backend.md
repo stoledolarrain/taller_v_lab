@@ -165,3 +165,15 @@ python manage.py test
 # Con Pytest:
 pytest
 ```
+
+---
+
+## 8. Colección de Postman
+
+Para facilitar la interacción manual y pruebas de integración por parte del equipo, se incluye una colección completa de Postman en el directorio [`postman/`](../postman/README.md):
+
+- **Colección:** `postman/Pasanaku_Digital.postman_collection.json`
+- **Entorno:** `postman/Pasanaku_Digital_Local.postman_environment.json`
+- **Guía de uso:** [`postman/README.md`](../postman/README.md)
+
+Incluye extracción automática de tokens JWT en variables de colección, para que no sea necesario copiar y pegar credenciales entre peticiones.

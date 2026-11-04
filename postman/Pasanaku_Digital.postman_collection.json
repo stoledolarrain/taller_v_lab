@@ -1,0 +1,1275 @@
+{
+    "info": {
+        "_postman_id": "9e945bf9-0f87-402c-8130-318fc3dcd06d",
+        "name": "Pasanaku Digital — API REST",
+        "description": "Colección completa de endpoints para el proyecto Pasanaku Digital (Taller de Actualización V).\n\nCubre todo el ciclo de vida del Pasanaku:\n1. Autenticación JWT (Registro, Login, Me, Token Refresh)\n2. Gestión de Grupos y Membresías (Borrador, Códigos de Invitación, Expulsión, Abandono)\n3. Turnos y Sorteo Automático (Asignación manual, sorteo aleatorio 1:1, Inicio del grupo)\n4. Rondas y Cuotas (Generación de cuotas, reporte de pago, validación admin, cierre atómico con bloqueo por deuda)\n5. Balance Financiero y Recordatorios Internos (Métricas, deudores, notificaciones)\n\nConfiguración automática: Los scripts de prueba extraen tokens JWT, IDs de grupo, ronda y cuota a variables de colección.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{access_token}}",
+                "type": "string"
+            }
+        ]
+    },
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://127.0.0.1:8000/api/v1",
+            "type": "string"
+        },
+        {
+            "key": "access_token",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "refresh_token",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "user_id",
+            "value": "1",
+            "type": "string"
+        },
+        {
+            "key": "group_id",
+            "value": "1",
+            "type": "string"
+        },
+        {
+            "key": "invite_code",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "round_id",
+            "value": "1",
+            "type": "string"
+        },
+        {
+            "key": "contribution_id",
+            "value": "1",
+            "type": "string"
+        },
+        {
+            "key": "reminder_id",
+            "value": "1",
+            "type": "string"
+        }
+    ],
+    "item": [
+        {
+            "name": "01. Autenticación (Auth)",
+            "description": "Endpoints públicos y privados para gestión de usuarios y tokens JWT.",
+            "item": [
+                {
+                    "name": "01 - Registro de Usuario (Admin Creador)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "",
+                                    "var data = pm.response.json();",
+                                    "if (data.tokens && data.tokens.access) {",
+                                    "    pm.collectionVariables.set(\"access_token\", data.tokens.access);",
+                                    "    pm.collectionVariables.set(\"refresh_token\", data.tokens.refresh);",
+                                    "    console.log(\"Tokens guardados automáticamente en collection variables.\");",
+                                    "}",
+                                    "if (data.user && data.user.id) {",
+                                    "    pm.collectionVariables.set(\"user_id\", data.user.id);",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"username\": \"carlos_admin\",\n    \"email\": \"carlos.admin@pasanaku.bo\",\n    \"password\": \"Password123*\",\n    \"first_name\": \"Carlos\",\n    \"last_name\": \"Mendoza\",\n    \"phone_number\": \"+591 71234567\",\n    \"ci\": \"8472910 LP\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/auth/register/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "register",
+                                ""
+                            ]
+                        },
+                        "description": "Registra un nuevo usuario en la plataforma. Devuelve los tokens JWT (`access` y `refresh`). Guarda el token automáticamente en `{{access_token}}`."
+                    }
+                },
+                {
+                    "name": "02 - Registro de Usuario (Participante 2)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"username\": \"ana_socia\",\n    \"email\": \"ana.socia@pasanaku.bo\",\n    \"password\": \"Password123*\",\n    \"first_name\": \"Ana\",\n    \"last_name\": \"Gomez\",\n    \"phone_number\": \"+591 79876543\",\n    \"ci\": \"6234981 SC\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/auth/register/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "register",
+                                ""
+                            ]
+                        },
+                        "description": "Crea un segundo usuario para probar el ingreso a grupos, turnos y pagos."
+                    }
+                },
+                {
+                    "name": "03 - Iniciar Sesión (Login)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "",
+                                    "var data = pm.response.json();",
+                                    "if (data.tokens && data.tokens.access) {",
+                                    "    pm.collectionVariables.set(\"access_token\", data.tokens.access);",
+                                    "    pm.collectionVariables.set(\"refresh_token\", data.tokens.refresh);",
+                                    "    console.log(\"Token de acceso actualizado.\");",
+                                    "}",
+                                    "if (data.user && data.user.id) {",
+                                    "    pm.collectionVariables.set(\"user_id\", data.user.id);",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"username_or_email\": \"carlos_admin\",\n    \"password\": \"Password123*\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/auth/login/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "login",
+                                ""
+                            ]
+                        },
+                        "description": "Autentica mediante username o correo electrónico. Guarda el `access_token` para las peticiones autenticadas subsiguientes."
+                    }
+                },
+                {
+                    "name": "04 - Consultar Perfil Autenticado (Me)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/auth/me/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "me",
+                                ""
+                            ]
+                        },
+                        "description": "Obtiene la información del usuario autenticado actual utilizando el header `Authorization: Bearer {{access_token}}`."
+                    }
+                },
+                {
+                    "name": "05 - Refrescar Token JWT",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "",
+                                    "var data = pm.response.json();",
+                                    "if (data.access) {",
+                                    "    pm.collectionVariables.set(\"access_token\", data.access);",
+                                    "    console.log(\"Nuevo access token obtenido y guardado.\");",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"refresh\": \"{{refresh_token}}\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/auth/token/refresh/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "token",
+                                "refresh",
+                                ""
+                            ]
+                        },
+                        "description": "Renueva el access token expirado sin obligar al usuario a reintroducir su contraseña."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "02. Grupos y Membresías (Groups)",
+            "description": "Creación, configuración, previsualización y administración de miembros.",
+            "item": [
+                {
+                    "name": "01 - Listar Mis Grupos",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/groups/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "groups",
+                                ""
+                            ]
+                        },
+                        "description": "Lista todos los grupos a los que pertenece el usuario autenticado (como Admin o Participante)."
+                    }
+                },
+                {
+                    "name": "02 - Crear Grupo de Pasanaku (Borrador)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "",
+                                    "var data = pm.response.json();",
+                                    "if (data.group && data.group.id) {",
+                                    "    pm.collectionVariables.set(\"group_id\", data.group.id);",
+                                    "    pm.collectionVariables.set(\"invite_code\", data.group.invite_code);",
+                                    "    console.log(\"group_id: \" + data.group.id + \" e invite_code: \" + data.group.invite_code + \" guardados.\");",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Pasanaku Colegas Lab 2026\",\n    \"description\": \"Ahorro rotativo mensual para viajes y proyectos.\",\n    \"quota_amount\": \"200.00\",\n    \"periodicity\": \"MENSUAL\",\n    \"start_date\": \"2026-12-01\",\n    \"total_members\": 2\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/groups/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "groups",
+                                ""
+                            ]
+                        },
+                        "description": "Crea un nuevo grupo en estado `BORRADOR`. El creador queda automáticamente asignado como `ADMIN`. Guarda `group_id` e `invite_code`."
+                    }
+                },
+                {
+                    "name": "03 - Consultar Detalle del Grupo",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "",
+                                    "var data = pm.response.json();",
+                                    "if (data.invite_code) {",
+                                    "    pm.collectionVariables.set(\"invite_code\", data.invite_code);",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/groups/{{group_id}}/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "groups",
+                                "{{group_id}}",
+                                ""
+                            ]
+                        },
+                        "description": "Retorna información detallada del grupo, membresías, estado de cupos y turnos. Aplica regla de aislamiento (403 si el usuario es ajeno al grupo)."
+                    }
+                },
+                {
+                    "name": "04 - Actualizar Configuración (Solo Borrador)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"description\": \"Descripci\\u00f3n actualizada mientras el pasanaku est\\u00e9 en estado BORRADOR.\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/groups/{{group_id}}/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "groups",
+                                "{{group_id}}",
+                                ""
+                            ]
+                        },
+                        "description": "Actualiza campos permitidos. Bloqueado con error si el pasanaku ya ha sido INICIADO."
+                    }
+                },
+                {
+                    "name": "05 - Previsualizar Grupo por Código de Invitación",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/groups/preview/?code={{invite_code}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "groups",
+                                "preview",
+                                ""
+                            ],
+                            "query": [
+                                {
+                                    "key": "code",
+                                    "value": "{{invite_code}}"
+                                }
+                            ]
+                        },
+                        "description": "Permite a un usuario consultar datos públicos básicos (nombre, monto, periodicidad, cupos restantes) antes de unirse al grupo."
+                    }
+                },
+                {
+                    "name": "06 - Unirse al Grupo Mediante Código",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"invite_code\": \"{{invite_code}}\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/groups/join/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "groups",
+                                "join",
+                                ""
+                            ]
+                        },
+                        "description": "Une al usuario autenticado al grupo con el rol PARTICIPANTE. Valida que no esté duplicado, que el grupo esté en BORRADOR y que existan cupos libres."
+                    }
+                },
+                {
+                    "name": "07 - Regenerar Código de Invitación (Admin)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "",
+                                    "var data = pm.response.json();",
+                                    "if (data.invite_code) {",
+                                    "    pm.collectionVariables.set(\"invite_code\", data.invite_code);",
+                                    "    console.log(\"Nuevo código de invitación: \" + data.invite_code);",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/groups/{{group_id}}/regenerate-code/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "groups",
+                                "{{group_id}}",
+                                "regenerate-code",
+                                ""
+                            ]
+                        },
+                        "description": "Regenera un nuevo código de invitación alfanumérico. Solo permitido al Administrador en estado BORRADOR."
+                    }
+                },
+                {
+                    "name": "08 - Remover Miembro del Grupo (Admin)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"user_id\": 2\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/groups/{{group_id}}/remove-member/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "groups",
+                                "{{group_id}}",
+                                "remove-member",
+                                ""
+                            ]
+                        },
+                        "description": "Permite al administrador expulsar a un miembro en estado BORRADOR."
+                    }
+                },
+                {
+                    "name": "09 - Abandonar Grupo (Leave)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/groups/{{group_id}}/leave/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "groups",
+                                "{{group_id}}",
+                                "leave",
+                                ""
+                            ]
+                        },
+                        "description": "Permite a un miembro salir del grupo. Prohibido retirarse libremente si el pasanaku ya ha sido INICIADO."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "03. Turnos y Sorteo (Turns & Raffle)",
+            "description": "Organización 1:1 de turnos, sorteo automático aleatorio e inicio del pasanaku.",
+            "item": [
+                {
+                    "name": "01 - Listar Turnos del Grupo",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/groups/{{group_id}}/turns/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "groups",
+                                "{{group_id}}",
+                                "turns",
+                                ""
+                            ]
+                        },
+                        "description": "Lista el orden de beneficiarios establecido para cada número de turno (1 a N)."
+                    }
+                },
+                {
+                    "name": "02 - Sortear Turnos Automáticamente (Raffle)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/groups/{{group_id}}/turns/raffle/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "groups",
+                                "{{group_id}}",
+                                "turns",
+                                "raffle",
+                                ""
+                            ]
+                        },
+                        "description": "Realiza un sorteo automático y aleatorio de turnos entre todos los integrantes. Requiere cupos completos."
+                    }
+                },
+                {
+                    "name": "03 - Asignar Turnos Manualmente",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"assignments\": [\n        {\n            \"user_id\": 1,\n            \"turn_number\": 1\n        },\n        {\n            \"user_id\": 2,\n            \"turn_number\": 2\n        }\n    ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/groups/{{group_id}}/turns/manual/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "groups",
+                                "{{group_id}}",
+                                "turns",
+                                "manual",
+                                ""
+                            ]
+                        },
+                        "description": "Permite al administrador fijar manualmente el orden de cobro. Valida que los turnos cubran exactamente de 1 a N sin repeticiones."
+                    }
+                },
+                {
+                    "name": "04 - Iniciar Pasanaku (Start)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "",
+                                    "var data = pm.response.json();",
+                                    "if (data.group && data.group.current_round && data.group.current_round.id) {",
+                                    "    pm.collectionVariables.set(\"round_id\", data.group.current_round.id);",
+                                    "    console.log(\"Ronda 1 iniciada con ID: \" + data.group.current_round.id);",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/groups/{{group_id}}/start/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "groups",
+                                "{{group_id}}",
+                                "start",
+                                ""
+                            ]
+                        },
+                        "description": "Congela la configuración y turnos del grupo, cambiando su estado a `INICIADO`. Genera automáticamente la Ronda 1 con sus cuotas en `PENDIENTE`."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "04. Rondas y Aportes (Rounds & Contributions)",
+            "description": "Cobro de cuotas, validación admin y cierre atómico de rondas con bloqueo por deuda.",
+            "item": [
+                {
+                    "name": "01 - Listar Historial de Rondas del Grupo",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/groups/{{group_id}}/rounds/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "groups",
+                                "{{group_id}}",
+                                "rounds",
+                                ""
+                            ]
+                        },
+                        "description": "Lista todas las rondas generadas en el grupo con sus estados (ACTIVA o CERRADA)."
+                    }
+                },
+                {
+                    "name": "02 - Consultar Ronda Activa Actual",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "",
+                                    "var data = pm.response.json();",
+                                    "if (data.id) {",
+                                    "    pm.collectionVariables.set(\"round_id\", data.id);",
+                                    "}",
+                                    "if (data.contributions && data.contributions.length > 0) {",
+                                    "    pm.collectionVariables.set(\"contribution_id\", data.contributions[0].id);",
+                                    "    console.log(\"contribution_id seleccionado: \" + data.contributions[0].id);",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/groups/{{group_id}}/rounds/current/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "groups",
+                                "{{group_id}}",
+                                "rounds",
+                                "current",
+                                ""
+                            ]
+                        },
+                        "description": "Obtiene la ronda actualmente en curso, incluyendo el desglose de cuotas individuales."
+                    }
+                },
+                {
+                    "name": "03 - Consultar Detalle de una Ronda",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/rounds/{{round_id}}/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "rounds",
+                                "{{round_id}}",
+                                ""
+                            ]
+                        },
+                        "description": "Consulta el estado general, beneficiario asignado, totales recaudados y pendientes de una ronda específica."
+                    }
+                },
+                {
+                    "name": "04 - Listar Cuotas de una Ronda",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "",
+                                    "var data = pm.response.json();",
+                                    "if (Array.isArray(data) && data.length > 0) {",
+                                    "    pm.collectionVariables.set(\"contribution_id\", data[0].id);",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/rounds/{{round_id}}/contributions/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "rounds",
+                                "{{round_id}}",
+                                "contributions",
+                                ""
+                            ]
+                        },
+                        "description": "Lista el estado de aportes de cada integrante para la ronda especificada."
+                    }
+                },
+                {
+                    "name": "05 - Reportar Pago de Cuota (Participante)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"notes\": \"Transferencia bancaria QR Banco Uni\\u00f3n #982341.\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/contributions/{{contribution_id}}/pay/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "contributions",
+                                "{{contribution_id}}",
+                                "pay",
+                                ""
+                            ]
+                        },
+                        "description": "El participante reporta que realizó el pago y adjunta una referencia o nota."
+                    }
+                },
+                {
+                    "name": "06 - Validar Aporte como Pagado (Admin)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/contributions/{{contribution_id}}/validate/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "contributions",
+                                "{{contribution_id}}",
+                                "validate",
+                                ""
+                            ]
+                        },
+                        "description": "El administrador confirma la recepción del dinero. Cambia el estado de la cuota a `PAGADA` y sella la fecha de validación."
+                    }
+                },
+                {
+                    "name": "07 - Cerrar Ronda y Avanzar Turno (Bloqueo por Deuda)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Respuesta recibida\", function () {",
+                                    "    pm.expect(pm.response.code).to.be.oneOf([200, 400]);",
+                                    "});",
+                                    "",
+                                    "var data = pm.response.json();",
+                                    "if (pm.response.code === 200 && data.next_round && data.next_round.id) {",
+                                    "    pm.collectionVariables.set(\"round_id\", data.next_round.id);",
+                                    "    console.log(\"Avanzado a siguiente ronda: \" + data.next_round.id);",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/rounds/{{round_id}}/close/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "rounds",
+                                "{{round_id}}",
+                                "close",
+                                ""
+                            ]
+                        },
+                        "description": "Operación crítica del negocio:\n1. Verifica bloqueo por deuda (falla con 400 si hay cuotas PENDIENTES).\n2. Registra entrega del pozo acumulado al beneficiario.\n3. Cierra la ronda actual y habilita de forma atómica la siguiente (o marca FINALIZADO si es la última)."
+                    }
+                },
+                {
+                    "name": "08 - Consultar Mis Cuotas (Personales)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/users/me/contributions/?group_id={{group_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "users",
+                                "me",
+                                "contributions",
+                                ""
+                            ],
+                            "query": [
+                                {
+                                    "key": "group_id",
+                                    "value": "{{group_id}}"
+                                }
+                            ]
+                        },
+                        "description": "Lista todas las cuotas (pendientes y pagadas) pertenecientes al usuario autenticado, con filtro opcional por grupo."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "05. Balance Financiero y Recordatorios (Financial & Reminders)",
+            "description": "Totales esperados/recaudados, lista de morosos y notificaciones internas.",
+            "item": [
+                {
+                    "name": "01 - Resumen Financiero y Lista de Deudores",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/groups/{{group_id}}/summary/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "groups",
+                                "{{group_id}}",
+                                "summary",
+                                ""
+                            ]
+                        },
+                        "description": "Calcula el total esperado, monto recaudado, saldo pendiente del pasanaku y lista detallada de participantes con cuotas morosas en la ronda activa."
+                    }
+                },
+                {
+                    "name": "02 - Enviar Recordatorio a Deudores (Admin)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"message\": \"Estimado participante, recuerda realizar tu aporte antes del fin de semana para no retrasar el turno del beneficiario.\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/groups/{{group_id}}/reminders/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "groups",
+                                "{{group_id}}",
+                                "reminders",
+                                ""
+                            ]
+                        },
+                        "description": "Genera automáticamente recordatorios internos en la app para todos los participantes con cuotas en estado PENDIENTE."
+                    }
+                },
+                {
+                    "name": "03 - Listar Mis Recordatorios Recibidos",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "",
+                                    "var data = pm.response.json();",
+                                    "if (Array.isArray(data) && data.length > 0) {",
+                                    "    pm.collectionVariables.set(\"reminder_id\", data[0].id);",
+                                    "}"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/users/me/reminders/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "users",
+                                "me",
+                                "reminders",
+                                ""
+                            ]
+                        },
+                        "description": "Lista las notificaciones y recordatorios internos recibidos por el usuario actual."
+                    }
+                },
+                {
+                    "name": "04 - Marcar Recordatorio como Leído",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test(\"Status code es 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/reminders/{{reminder_id}}/read/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "reminders",
+                                "{{reminder_id}}",
+                                "read",
+                                ""
+                            ]
+                        },
+                        "description": "Marca un recordatorio recibido como leído (`is_read = True`)."
+                    }
+                }
+            ]
+        }
+    ]
+}

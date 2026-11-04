@@ -46,6 +46,10 @@ Plataforma web para organizar, controlar y dar trazabilidad al ahorro grupal rot
 │   ├── src/                  # Componentes, vistas, hooks y servicios
 │   ├── package.json
 │   └── vite.config.ts
+├── postman/                  # Colección oficial de Postman y variables de entorno
+│   ├── Pasanaku_Digital.postman_collection.json
+│   ├── Pasanaku_Digital_Local.postman_environment.json
+│   └── README.md
 ├── proyecto_final_taller_v_pasanaku_digital.pdf # Requerimientos oficiales
 └── README.md
 ```
@@ -93,3 +97,6 @@ npm install
 npm run dev
 ```
 El frontend se levantará en: **`http://localhost:5173/`**
+
+### Pruebas de API con Postman
+En la carpeta [`postman/`](postman/README.md) se encuentra la colección oficial `Pasanaku_Digital.postman_collection.json` y el archivo de entorno `Pasanaku_Digital_Local.postman_environment.json` listos para importar y probar el ciclo completo de la API. Consulta la [Guía de Postman](postman/README.md) para detalles del flujo de pruebas.

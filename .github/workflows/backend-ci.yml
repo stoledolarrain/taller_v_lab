@@ -1,0 +1,51 @@
+name: Backend CI — Tests & Verificación
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+
+jobs:
+  test:
+    name: Backend Lint, Migrations & Pytest
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      DJANGO_SECRET_KEY: 'django-insecure-ci-test-key-taller-v'
+      DJANGO_DEBUG: 'True'
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: 'backend/requirements.txt'
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verificar configuración de Django (Check)
+        run: python manage.py check
+
+      - name: Verificar migraciones pendientes (Makemigrations Check)
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Ejecutar suite de pruebas con Pytest
+        run: pytest -v --tb=short

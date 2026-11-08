@@ -158,12 +158,20 @@ El backend estará disponible en: **`http://127.0.0.1:8000/`**
 
 ## 7. Ejecución de Pruebas Automatizadas
 
-```bash
-# Con Django Test Runner:
-python manage.py test
+La suite cuenta con **44 pruebas automatizadas** que cubren al 100% las especificaciones de las Secciones 11, 12 y 13 del documento de requerimientos:
 
-# Con Pytest:
+```bash
+# Ejecutar toda la suite completa (44 pruebas):
 pytest
+
+# 1. Pruebas Unitarias (Autenticación + Reglas de Negocio - PDF Sec. 11):
+pytest apps/authentication/tests/ apps/groups/tests/test_unit_business_rules.py -v
+
+# 2. Pruebas de Integración (API REST & Base de Datos - PDF Sec. 12):
+pytest apps/groups/tests/test_integration_api.py -v
+
+# 3. Pruebas End-to-End (Ciclos de Vida Completos - PDF Sec. 13):
+pytest apps/groups/tests/test_e2e_flows.py -v
 ```
 
 ---

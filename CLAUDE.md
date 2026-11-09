@@ -23,6 +23,7 @@ El proyecto se organiza como un monorepo desacoplado:
 1. **Autorización Manual Obligatoria:** No se pueden hacer directamente commits ni pushes luego de terminar un nuevo feature o cambio al código; **se requiere autorización manual previa** del usuario, siguiendo las mejores prácticas de trabajo con IA y Git.
 2. **Uso Exclusivo de Ramas (Branches):** Cada nueva feature, refactorización, test o cambio **obligatoriamente debe ser realizado en una nueva rama** temática (`feat/...`, `test/...`, `fix/...`).
 3. **Merge a `main` vía Pull Request:** Queda terminantemente prohibido commitear o pushear directamente a `main`. Todo cambio debe pasar por un Pull Request (PR) y ser aprobado con un merge commit a la rama `main` tras validar los chequeos automáticos de CI.
+4. **Mensajes de Commit en Español y Conventional Commits:** Todos los mensajes de commit deben redactarse obligatoriamente en **español**, aplicando las buenas prácticas de Conventional Commits (`tipo(alcance): descripción en imperativo y minúsculas`, ej. `feat(docker): implementar orquestación con docker compose`).
 
 ---
 

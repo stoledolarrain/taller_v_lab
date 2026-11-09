@@ -56,7 +56,23 @@ Plataforma web para organizar, controlar y dar trazabilidad al ahorro grupal rot
 
 ---
 
-## 🚀 Primeros Pasos
+## 🚀 Despliegue Rápido con Docker (Recomendado)
+
+Puedes levantar la base de datos PostgreSQL, el backend Django y el frontend React con un solo comando:
+
+```bash
+docker compose up --build
+```
+
+- **Frontend:** [http://localhost:3000](http://localhost:3000)
+- **API REST Backend:** [http://localhost:8000/api/v1/](http://localhost:8000/api/v1/)
+- **Panel de Administración:** [http://localhost:8000/admin/](http://localhost:8000/admin/)
+
+Consulta la [Guía completa de Docker](docs/docker.md) para más detalles, comandos de administración y pruebas dentro de contenedores.
+
+---
+
+## 💻 Desarrollo Local (Sin Docker)
 
 ### Backend (Django)
 ```bash

@@ -6,6 +6,11 @@ import { LoginForm } from './components/auth/LoginForm';
 import { RegisterForm } from './components/auth/RegisterForm';
 import { UserDashboard } from './components/dashboard/UserDashboard';
 import './App.css';
+import './components/grupos/groups.css';
+import './components/turnos/turns.css';
+import './components/rondas/rondas.css';
+import './components/aportes/aportes.css';
+import './components/recordatorios/reminders.css';
 
 const MainContent: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();

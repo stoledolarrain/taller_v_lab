@@ -1,0 +1,231 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   MÓDULO 4 — Aportes y Cuotas
+   Pasanaku Digital — Estilos de tabla de cuotas y reportes de pago
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.contributions-container {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.contributions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.contributions-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.contributions-title {
+  margin: 0;
+  font-size: 1.15rem;
+  color: #0f172a;
+}
+
+.contributions-progress-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  letter-spacing: 0.02em;
+}
+
+.badge--success {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+}
+
+.badge--warning {
+  background: #fff7ed;
+  color: #9a3412;
+  border: 1px solid #fdba74;
+}
+
+.contributions-financial-stats {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.stat-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 8px;
+  font-size: 0.825rem;
+}
+
+.stat-pill--collected {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+.stat-pill--pending {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.stat-label {
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* Tabla */
+.contributions-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.contributions-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.875rem;
+}
+
+.contributions-table th {
+  background: #f8fafc;
+  padding: 0.75rem 0.9rem;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.contributions-table td {
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.contribution-row:hover {
+  background-color: #fafbfc;
+}
+
+.contribution-row--pending {
+  background-color: #ffffff;
+}
+
+.contribution-row--paid {
+  background-color: #fbfdfc;
+}
+
+.contribution-row__user-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.contribution-row__user-name {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.user-self-tag {
+  color: #0d9488;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.contribution-row__user-handle {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.contribution-row__amount {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.contribution-notes-text {
+  font-size: 0.8rem;
+  color: #475569;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+.contribution-notes-empty {
+  color: #cbd5e1;
+}
+
+.contribution-date {
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.contribution-date-pending {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.contribution-row__actions {
+  white-space: nowrap;
+}
+
+.btn-sm {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8rem;
+  border-radius: 6px;
+}
+
+.btn-validate {
+  background-color: #0d9488;
+  color: #ffffff;
+}
+
+.btn-validate:hover:not(:disabled) {
+  background-color: #0f766e;
+}
+
+.contribution-validated-badge {
+  font-size: 0.78rem;
+  color: #166534;
+  font-weight: 600;
+}
+
+.contributions-empty {
+  padding: 2rem;
+  text-align: center;
+  color: #64748b;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+/* Modal de reporte de pago */
+.external-payment-notice {
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
+  border-radius: 8px;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.85rem;
+  color: #0f766e;
+  line-height: 1.45;
+  margin-bottom: 1rem;
+}
+
+.report-payment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}

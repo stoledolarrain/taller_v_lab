@@ -1,0 +1,305 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   MÓDULO 3 — Rondas y Cierre de Ronda
+   Pasanaku Digital — Estilos de ronda activa, barra de progreso e historial
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.current-round-card {
+  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.current-round-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 1rem;
+}
+
+.round-badge-group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.round-pill {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  background: #e2e8f0;
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+}
+
+.round-beneficiary-highlight {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+}
+
+.beneficiary-icon {
+  font-size: 1.6rem;
+}
+
+.beneficiary-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.beneficiary-label {
+  font-size: 0.75rem;
+  color: #3b82f6;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.beneficiary-name {
+  font-size: 1rem;
+  color: #1e3a8a;
+}
+
+.beneficiary-user {
+  font-size: 0.8rem;
+  color: #60a5fa;
+}
+
+/* Progreso financiero */
+.round-financial-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.financial-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.financial-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.financial-title {
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.financial-amount {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.progress-track {
+  width: 100%;
+  height: 12px;
+  background-color: #e2e8f0;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #0d9488;
+  border-radius: 9999px;
+  transition: width 0.4s ease-in-out;
+}
+
+.progress-fill--complete {
+  background: #16a34a;
+}
+
+.progress-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.progress-text {
+  font-weight: 600;
+  color: #475569;
+}
+
+.pending-text {
+  color: #dc2626;
+  font-weight: 500;
+}
+
+.complete-text {
+  color: #166534;
+  font-weight: 600;
+}
+
+/* Botón de cierre y Bloqueo por deuda */
+.current-round-footer {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 1rem;
+}
+
+.close-round-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.close-round-action-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.close-round-btn {
+  background-color: #0f766e;
+  font-size: 0.95rem;
+  padding: 0.7rem 1.3rem;
+}
+
+.close-round-btn:disabled {
+  background-color: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.debt-block-notice {
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+  color: #9a3412;
+  line-height: 1.4;
+  flex: 1;
+}
+
+/* Historial de rondas */
+.round-history-section {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.round-history-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  background: #f8fafc;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+  transition: background-color 0.15s ease;
+}
+
+.round-history-toggle:hover {
+  background-color: #f1f5f9;
+}
+
+.round-history-toggle__title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.round-history-count-badge {
+  font-size: 0.75rem;
+  background: #e2e8f0;
+  color: #475569;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+}
+
+.toggle-chevron {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.round-history-content {
+  padding: 1.25rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.round-history-empty {
+  margin: 0;
+  color: #64748b;
+  text-align: center;
+  font-size: 0.9rem;
+  padding: 1rem 0;
+}
+
+.round-history-table-wrapper {
+  overflow-x: auto;
+}
+
+.round-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.round-history-table th {
+  background: #f8fafc;
+  padding: 0.65rem 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.round-history-table td {
+  padding: 0.65rem 0.8rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.round-history-num {
+  color: #0d9488;
+}
+
+.round-history-beneficiary {
+  color: #0f172a;
+}
+
+.beneficiary-handle {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.round-history-amount {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.round-history-date {
+  color: #64748b;
+  font-size: 0.8rem;
+}

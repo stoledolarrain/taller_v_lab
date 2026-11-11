@@ -1,0 +1,178 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   MÓDULO 2 — Turnos y Sorteo
+   Pasanaku Digital — Estilos para turnos, sorteo y asignación
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.turns-section {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.turns-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.turns-section__title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.turns-section__title {
+  margin: 0;
+  font-size: 1.15rem;
+  color: #0f172a;
+}
+
+.turns-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  letter-spacing: 0.02em;
+}
+
+.turns-badge--complete {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+}
+
+.turns-badge--pending {
+  background: #fef9c3;
+  color: #854d0e;
+  border: 1px solid #fde047;
+}
+
+.raffle-action {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.raffle-btn {
+  background-color: #f0fdf4;
+  color: #166534;
+  border: 1px solid #86efac;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.45rem 0.9rem;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+}
+
+.raffle-btn:hover:not(:disabled) {
+  background-color: #dcfce7;
+}
+
+.raffle-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #64748b;
+}
+
+.raffle-hint {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.turns-empty {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.turns-empty__text {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.turns-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.turns-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.65rem 0.9rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  transition: background-color 0.15s ease;
+}
+
+.turns-item:hover {
+  background-color: #f1f5f9;
+}
+
+.turns-item__number {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #0d9488;
+  background: #e6fffa;
+  border: 1px solid #99f6e4;
+  border-radius: 6px;
+  padding: 0.2rem 0.55rem;
+  min-width: 2rem;
+  text-align: center;
+}
+
+.turns-item__info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  flex: 1;
+}
+
+.turns-item__name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #0f172a;
+}
+
+.turns-item__username {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.turns-item__badge {
+  font-size: 0.75rem;
+  color: #475569;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  font-weight: 500;
+}
+
+@media (max-width: 600px) {
+  .turns-item {
+    flex-wrap: wrap;
+  }
+  .turns-item__badge {
+    margin-left: auto;
+  }
+}

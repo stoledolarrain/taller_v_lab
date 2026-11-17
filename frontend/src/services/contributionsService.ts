@@ -38,9 +38,11 @@ export const contributionsService = {
   },
 
   /**
-   * GET /users/me/contributions/ — Mis cuotas pendientes y pagadas a través de mis grupos
+   * GET /users/me/contributions/?group_id=X — Mis cuotas pendientes y pagadas.
+   * Si se indica groupId, filtra solo las cuotas de ese grupo.
    */
-  async getMyContributions(): Promise<Contribution[]> {
-    return apiRequest<Contribution[]>('/users/me/contributions/');
+  async getMyContributions(groupId?: number): Promise<Contribution[]> {
+    const query = groupId ? `?group_id=${groupId}` : '';
+    return apiRequest<Contribution[]>(`/users/me/contributions/${query}`);
   },
 };

@@ -6,6 +6,7 @@ import { CurrencyDisplay } from '../ui/CurrencyDisplay';
 import {
   calcularTotalRecaudado,
   calcularTotalPendiente,
+  estaReportadaSinValidar,
 } from '../../types/contributions';
 
 interface ContributionsListProps {
@@ -36,6 +37,7 @@ export const ContributionsList: React.FC<ContributionsListProps> = ({
   const [isReporting, setIsReporting] = useState(false);
 
   const totalPaidCount = contributions.filter((c) => c.status === 'PAGADA').length;
+  const totalReportedCount = contributions.filter(estaReportadaSinValidar).length;
   const totalRecaudado = calcularTotalRecaudado(contributions);
   const totalPendiente = calcularTotalPendiente(contributions);
 
@@ -65,6 +67,14 @@ export const ContributionsList: React.FC<ContributionsListProps> = ({
           >
             {totalPaidCount}/{contributions.length} cuotas pagadas
           </span>
+          {isAdmin && totalReportedCount > 0 && (
+            <span
+              className="contributions-progress-badge badge--info"
+              data-testid="contributions-reported-counter"
+            >
+              {totalReportedCount} por validar
+            </span>
+          )}
         </div>
 
         <div className="contributions-financial-stats">
@@ -102,7 +112,8 @@ export const ContributionsList: React.FC<ContributionsListProps> = ({
                 <th scope="col">Monto</th>
                 <th scope="col">Estado</th>
                 <th scope="col">Detalle / Comprobante</th>
-                <th scope="col">Fecha</th>
+                <th scope="col">Fecha de pago</th>
+                <th scope="col">Validación</th>
                 <th scope="col">Acción</th>
               </tr>
             </thead>

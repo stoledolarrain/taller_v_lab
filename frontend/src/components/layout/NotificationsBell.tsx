@@ -36,9 +36,21 @@ export const NotificationsBell: React.FC = () => {
         aria-expanded={isOpen}
         data-testid="notifications-bell"
       >
-        <span className="bell-icon" aria-hidden="true">
-          🔔
-        </span>
+        <svg
+          className="bell-icon"
+          aria-hidden="true"
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+        </svg>
         {unreadCount > 0 && (
           <span className="bell-badge" data-testid="notifications-badge">
             {unreadCount}
@@ -61,7 +73,7 @@ export const NotificationsBell: React.FC = () => {
               onClick={fetchReminders}
               aria-label="Actualizar recordatorios"
             >
-              ↺
+              Actualizar
             </button>
           </div>
 
@@ -105,7 +117,7 @@ export const NotificationsBell: React.FC = () => {
                           aria-label={`Marcar como leído recordatorio de ${reminder.group_name}`}
                           data-testid={`mark-read-btn-${reminder.id}`}
                         >
-                          ✓ Marcar leído
+                          Marcar como leído
                         </button>
                       )}
                     </div>

@@ -60,9 +60,6 @@ export const CurrentRound: React.FC<CurrentRoundProps> = ({
           className="round-beneficiary-highlight"
           data-testid="current-round-beneficiary"
         >
-          <span className="beneficiary-icon" aria-hidden="true">
-            🎁
-          </span>
           <div className="beneficiary-meta">
             <span className="beneficiary-label">Beneficiario de este turno:</span>
             <strong className="beneficiary-name">{beneficiaryName}</strong>
@@ -110,7 +107,7 @@ export const CurrentRound: React.FC<CurrentRoundProps> = ({
             </span>
           ) : (
             <span className="complete-text">
-              ✨ ¡Pozo completo listo para entregar al beneficiario!
+              ¡Pozo completo listo para entregar al beneficiario!
             </span>
           )}
         </div>

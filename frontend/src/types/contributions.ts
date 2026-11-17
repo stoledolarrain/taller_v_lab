@@ -62,6 +62,32 @@ export function calcularTotalPendiente(contributions: Contribution[]): number {
 }
 
 /**
+ * Determina si una cuota fue reportada por el participante pero aún no fue
+ * validada por el administrador. El backend mantiene el estado PENDIENTE hasta
+ * la validación y solo registra la fecha de pago al reportar.
+ */
+export function estaReportadaSinValidar(contribution: Contribution): boolean {
+  return contribution.status === 'PENDIENTE' && !!contribution.payment_date;
+}
+
+/**
+ * Formatea una fecha ISO (con o sin hora) como dd/mm/aaaa en formato boliviano.
+ * Devuelve null si la fecha no existe o es inválida.
+ */
+export function formatearFecha(isoDate: string | null | undefined): string | null {
+  if (!isoDate) return null;
+  // Fechas sin hora (YYYY-MM-DD) se interpretan en hora local para evitar desfase de un día
+  const onlyDate = /^\d{4}-\d{2}-\d{2}$/.test(isoDate);
+  const date = onlyDate ? new Date(`${isoDate}T00:00:00`) : new Date(isoDate);
+  if (isNaN(date.getTime())) return null;
+  return date.toLocaleDateString('es-BO', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
+
+/**
  * Determina si quedan aportes pendientes de validación o pago.
  */
 export function tieneCuotasPendientes(contributions: Contribution[]): boolean {

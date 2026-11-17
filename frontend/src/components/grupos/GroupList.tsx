@@ -61,7 +61,6 @@ export const GroupList: React.FC<GroupListProps> = ({
         <LoadingSpinner message="Cargando tus grupos..." />
       ) : groups.length === 0 ? (
         <EmptyState
-          icon="🪙"
           title="Aún no tienes grupos"
           description="Crea tu primer pasanaku o únete a uno con un código de invitación."
           action={

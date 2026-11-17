@@ -38,7 +38,7 @@ export const RaffleButton: React.FC<RaffleButtonProps> = ({
         aria-busy={isRaffling}
         data-testid="raffle-turns-btn"
       >
-        {isRaffling ? '🎲 Sorteando...' : '🎲 Sortear turnos'}
+        {isRaffling ? 'Sorteando...' : 'Sortear turnos'}
       </button>
 
       {!isFull && (

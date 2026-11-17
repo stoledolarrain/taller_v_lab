@@ -14,7 +14,7 @@ interface EmptyStateProps {
 export const EmptyState: React.FC<EmptyStateProps> = ({
   title,
   description,
-  icon = '📭',
+  icon,
   action,
 }) => {
   return (
@@ -24,9 +24,11 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       aria-label={title}
       data-testid="empty-state"
     >
-      <span className="empty-state__icon" aria-hidden="true">
-        {icon}
-      </span>
+      {icon && (
+        <span className="empty-state__icon" aria-hidden="true">
+          {icon}
+        </span>
+      )}
       <h3 className="empty-state__title">{title}</h3>
       {description && <p className="empty-state__description">{description}</p>}
       {action && <div className="empty-state__action">{action}</div>}

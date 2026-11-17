@@ -8,7 +8,9 @@ export const Navbar: React.FC = () => {
   return (
     <nav className="navbar">
       <div className="navbar-brand">
-        <span className="brand-logo">🪙</span>
+        <span className="brand-logo" aria-hidden="true">
+          P
+        </span>
         <span className="brand-title">Pasanaku Digital</span>
       </div>
 

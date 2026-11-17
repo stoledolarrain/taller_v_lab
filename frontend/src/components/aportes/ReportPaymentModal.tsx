@@ -81,9 +81,9 @@ export const ReportPaymentModal: React.FC<ReportPaymentModalProps> = ({
         </p>
 
         <div className="external-payment-notice" role="note">
-          ℹ️ <strong>Importante:</strong> Pasanaku Digital registra aportes realizados
-          fuera de la plataforma (QR, efectivo, transferencia externa). Tu reporte será
-          revisado y validado por el administrador del grupo.
+          <strong>Importante:</strong> Pasanaku Digital registra aportes realizados fuera
+          de la plataforma (QR, efectivo, transferencia externa). Tu reporte será revisado
+          y validado por el administrador del grupo.
         </div>
 
         <form onSubmit={handleSubmit} className="report-payment-form">

@@ -66,8 +66,14 @@ export const MembersList: React.FC<MembersListProps> = ({
               data-testid={`member-item-${membership.user.id}`}
             >
               <div className="members-list__user-info">
-                <span className="members-list__avatar" aria-hidden="true">
-                  {membership.role === 'ADMIN' ? '👑' : '👤'}
+                <span
+                  className={`members-list__avatar members-list__avatar--${membership.role.toLowerCase()}`}
+                  aria-hidden="true"
+                >
+                  {(membership.user.full_name || membership.user.username)
+                    .trim()
+                    .charAt(0)
+                    .toUpperCase()}
                 </span>
                 <div>
                   <span className="members-list__username">
@@ -76,11 +82,16 @@ export const MembersList: React.FC<MembersListProps> = ({
                       <span className="members-list__you-tag"> (tú)</span>
                     )}
                   </span>
-                  <span
-                    className={`members-list__role members-list__role--${membership.role.toLowerCase()}`}
-                    aria-label={`Rol: ${rolLabel}`}
-                  >
-                    {rolLabel}
+                  <span className="members-list__meta">
+                    <span
+                      className={`members-list__role members-list__role--${membership.role.toLowerCase()}`}
+                      aria-label={`Rol: ${rolLabel}`}
+                    >
+                      {rolLabel}
+                    </span>
+                    <span className="members-list__handle">
+                      @{membership.user.username}
+                    </span>
                   </span>
                 </div>
               </div>

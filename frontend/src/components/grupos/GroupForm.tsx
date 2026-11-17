@@ -73,37 +73,37 @@ export const GroupForm: React.FC<GroupFormProps> = ({
         data-testid="group-form-readonly"
       >
         <div className="form-group">
-          <span className="form-group label">Nombre</span>
+          <span className="form-label">Nombre</span>
           <span className="form-readonly-value">{values.name || '-'}</span>
         </div>
         <div className="form-group">
-          <span className="form-group label">Descripción</span>
+          <span className="form-label">Descripción</span>
           <span className="form-readonly-value">
             {values.description || 'Sin descripción'}
           </span>
         </div>
         <div className="form-group">
-          <span className="form-group label">Cuota</span>
+          <span className="form-label">Cuota</span>
           <span className="form-readonly-value" data-testid="readonly-quota">
             {values.quota_amount ? formatearMontoBolivianos(values.quota_amount) : '-'}
           </span>
         </div>
         <div className="form-group">
-          <span className="form-group label">Periodicidad</span>
+          <span className="form-label">Periodicidad</span>
           <span className="form-readonly-value">
             {values.periodicity ? formatearPeriodicidad(values.periodicity) : '-'}
           </span>
         </div>
         <div className="form-group">
-          <span className="form-group label">Fecha de inicio</span>
+          <span className="form-label">Fecha de inicio</span>
           <span className="form-readonly-value">{values.start_date || '-'}</span>
         </div>
         <div className="form-group">
-          <span className="form-group label">Participantes</span>
+          <span className="form-label">Participantes</span>
           <span className="form-readonly-value">{values.total_members || '-'}</span>
         </div>
         <p className="group-form__lock-notice" role="note">
-          🔒 La configuración no puede modificarse una vez que el pasanaku ha iniciado.
+          La configuración no puede modificarse una vez que el pasanaku ha iniciado.
         </p>
       </div>
     );

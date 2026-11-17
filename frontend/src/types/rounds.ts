@@ -1,7 +1,8 @@
 import type { User } from './auth';
 import type { Contribution } from './contributions';
 
-export type RoundStatus = 'ACTIVA' | 'CERRADA' | 'PENDIENTE' | 'COMPLETADA';
+// Refleja exactamente RoundStatus del backend (apps/groups/models.py)
+export type RoundStatus = 'ACTIVA' | 'CERRADA';
 
 export interface Round {
   id: number;

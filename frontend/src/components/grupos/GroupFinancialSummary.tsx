@@ -41,7 +41,7 @@ export const GroupFinancialSummary: React.FC<GroupFinancialSummaryProps> = ({
     >
       <div className="financial-summary-header">
         <div className="financial-summary-title-group">
-          <h3 className="financial-summary-title">📊 Balance Financiero Global</h3>
+          <h3 className="financial-summary-title">Balance Financiero Global</h3>
           <span className="financial-summary-subtitle">
             Control de aportes y trazabilidad
           </span>
@@ -54,7 +54,7 @@ export const GroupFinancialSummary: React.FC<GroupFinancialSummaryProps> = ({
           aria-expanded={isExpanded}
           data-testid="toggle-financial-details-btn"
         >
-          {isExpanded ? '▲ Menos detalles' : '▼ Ver deudores y balance'}
+          {isExpanded ? 'Ocultar detalles' : 'Ver deudores y balance'}
         </button>
       </div>
 
@@ -92,7 +92,7 @@ export const GroupFinancialSummary: React.FC<GroupFinancialSummaryProps> = ({
 
               {debtors.length === 0 ? (
                 <p className="no-debtors-msg">
-                  ✨ ¡Excelente! No existen cuotas pendientes en la ronda activa.
+                  ¡Excelente! No existen cuotas pendientes en la ronda activa.
                 </p>
               ) : (
                 <ul className="debtors-list" role="list">
@@ -106,7 +106,7 @@ export const GroupFinancialSummary: React.FC<GroupFinancialSummaryProps> = ({
                         <strong>{debtor.full_name}</strong>{' '}
                         <span className="debtor-username">@{debtor.username}</span>
                         {debtor.phone_number && (
-                          <span className="debtor-phone">📱 {debtor.phone_number}</span>
+                          <span className="debtor-phone">Tel. {debtor.phone_number}</span>
                         )}
                       </div>
                       <div className="debtor-amount">
@@ -127,7 +127,7 @@ export const GroupFinancialSummary: React.FC<GroupFinancialSummaryProps> = ({
                 onClick={onRefresh}
                 data-testid="refresh-financial-summary-btn"
               >
-                ↺ Actualizar balance
+                Actualizar balance
               </button>
             </div>
           )}

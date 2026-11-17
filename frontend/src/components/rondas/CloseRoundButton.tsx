@@ -59,12 +59,12 @@ export const CloseRoundButton: React.FC<CloseRoundButtonProps> = ({
           aria-busy={isClosing}
           data-testid="close-round-btn"
         >
-          {isClosing ? 'Cerrando ronda...' : `🏁 Cerrar Ronda #${round.round_number}`}
+          {isClosing ? 'Cerrando ronda...' : `Cerrar Ronda #${round.round_number}`}
         </button>
 
         {!canClose && (
           <div className="debt-block-notice" role="alert" data-testid="debt-block-notice">
-            ⚠️ <strong>Bloqueo por deuda:</strong> No es posible cerrar la ronda mientras
+            <strong>Bloqueo por deuda:</strong> No es posible cerrar la ronda mientras
             existan cuotas en estado <em>PENDIENTE</em>.
           </div>
         )}

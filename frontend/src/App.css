@@ -36,7 +36,18 @@
 }
 
 .brand-logo {
-  font-size: 1.7rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: #0d9488;
+  color: #ffffff;
+  font-size: 1.1rem;
+  font-weight: 800;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .brand-title {
@@ -66,6 +77,28 @@
 .user-tag {
   color: #64748b;
   font-size: 0.85rem;
+}
+
+@media (max-width: 640px) {
+  .navbar {
+    padding: 0.75rem 1rem;
+    gap: 0.75rem;
+  }
+  .brand-title {
+    font-size: 1.1rem;
+  }
+  .user-info-badge {
+    gap: 0.5rem;
+  }
+  .user-tag {
+    display: none;
+  }
+}
+
+@media (max-width: 460px) {
+  .user-name {
+    display: none;
+  }
 }
 
 .guest-badge {
@@ -130,6 +163,16 @@
 
 .form-row .form-group {
   flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 520px) {
+  .form-row {
+    flex-direction: column;
+  }
+  .auth-card {
+    padding: 2rem 1.25rem;
+  }
 }
 
 .form-group {
@@ -139,7 +182,8 @@
   text-align: left;
 }
 
-.form-group label {
+.form-group label,
+.form-label {
   font-size: 0.875rem;
   font-weight: 600;
   color: #334155;
@@ -166,17 +210,37 @@
   cursor: not-allowed;
 }
 
-/* Buttons */
+/* Buttons — base común para que botones vecinos tengan el mismo alto y el texto quede centrado */
+.submit-btn,
+.secondary-btn,
+.danger-btn,
+.logout-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  line-height: 1.25;
+  text-align: center;
+  box-sizing: border-box;
+}
+
 .submit-btn {
   background-color: #0d9488;
   color: #ffffff;
-  border: none;
+  border: 1px solid transparent;
   border-radius: 8px;
-  padding: 0.8rem;
-  font-size: 1rem;
+  padding: 0.6rem 1.15rem;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s ease;
+}
+
+/* Botón principal de los formularios de login / registro: ancho completo */
+.auth-form .submit-btn {
+  width: 100%;
+  padding: 0.8rem;
+  font-size: 1rem;
   margin-top: 0.5rem;
 }
 
@@ -193,16 +257,21 @@
   background-color: #f1f5f9;
   color: #334155;
   border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  padding: 0.4rem 0.8rem;
-  font-size: 0.85rem;
+  border-radius: 8px;
+  padding: 0.6rem 1.15rem;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.secondary-btn:hover {
+.secondary-btn:hover:not(:disabled) {
   background-color: #e2e8f0;
+}
+
+.secondary-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .logout-btn {
@@ -226,10 +295,17 @@
   background: none;
   border: none;
   color: #0d9488;
+  font-size: inherit;
   font-weight: 600;
   cursor: pointer;
   padding: 0;
   text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.link-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .link-btn:hover {
@@ -256,6 +332,10 @@
 }
 
 .success-alert {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
   background-color: #f0fdf4;
   color: #166534;
   border: 1px solid #bbf7d0;

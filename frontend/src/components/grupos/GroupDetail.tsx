@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useTurns } from '../../hooks/useTurns';
 import { useCurrentRound } from '../../hooks/useCurrentRound';
 import { useReminders } from '../../hooks/useReminders';
+import { useMyContributions } from '../../hooks/useMyContributions';
 import { GroupForm } from './GroupForm';
 import { MembersList } from './MembersList';
 import { InviteCodeDisplay } from './InviteCodeDisplay';
@@ -13,6 +14,7 @@ import { RoundHistory } from '../rondas/RoundHistory';
 import { SendReminderButton } from '../rondas/SendReminderButton';
 import { GroupFinancialSummary } from './GroupFinancialSummary';
 import { ContributionsList } from '../aportes/ContributionsList';
+import { MyContributions } from '../aportes/MyContributions';
 import { StatusBadge } from '../ui/StatusBadge';
 import { CurrencyDisplay } from '../ui/CurrencyDisplay';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
@@ -88,6 +90,9 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ groupId, onBack, onLef
     error: roundError,
     successMessage: roundSuccess,
     canClose: canCloseRound,
+    roundContributions,
+    loadingRoundId,
+    loadRoundContributions,
     fetchCurrentRound,
     fetchHistory,
     closeCurrentRound,
@@ -97,13 +102,16 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ groupId, onBack, onLef
     clearSuccess: clearRoundSuccess,
   } = useCurrentRound({
     groupId,
+    enabled: group?.status === 'INICIADO' || group?.status === 'FINALIZADO',
     onRoundClosed: () => {
       fetchGroup();
       fetchSummary(groupId);
+      fetchMyContributions();
     },
     onPaymentUpdated: () => {
       fetchGroup();
       fetchSummary(groupId);
+      fetchMyContributions();
     },
   });
 
@@ -129,6 +137,16 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ groupId, onBack, onLef
   const isStarted = group?.status === 'INICIADO';
   const isFinished = group?.status === 'FINALIZADO';
   const isRunning = isStarted || isFinished;
+
+  // Cuotas del usuario autenticado en este grupo (PDF Sec. 8)
+  const {
+    contributions: myContributions,
+    totalPagado: myTotalPagado,
+    totalPendiente: myTotalPendiente,
+    isLoading: isLoadingMyContributions,
+    error: myContributionsError,
+    fetchMyContributions,
+  } = useMyContributions({ groupId, enabled: isRunning });
 
   // Cargar métricas financieras consolidadas cuando el pasanaku esté iniciado o finalizado
   useEffect(() => {
@@ -189,10 +207,9 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ groupId, onBack, onLef
     setActionError(null);
     try {
       await startWithTurns();
+      // Al recargar el grupo su estado pasa a INICIADO y los hooks de ronda,
+      // balance y "mis cuotas" se cargan solos (dependen de ese estado).
       await fetchGroup();
-      await fetchCurrentRound();
-      await fetchHistory();
-      await fetchSummary(groupId);
     } catch {
       setActionError(
         'Error al iniciar el pasanaku. Verifica que todos los cupos estén llenos y los turnos asignados.'
@@ -208,6 +225,7 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ groupId, onBack, onLef
       await fetchCurrentRound();
       await fetchHistory();
       await fetchSummary(groupId);
+      await fetchMyContributions();
     }
   };
 
@@ -332,9 +350,6 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ groupId, onBack, onLef
             role="status"
             data-testid="pasanaku-finished-banner"
           >
-            <span className="celebration-icon" aria-hidden="true">
-              🎉
-            </span>
             <div>
               <h3>¡Pasanaku Finalizado con Éxito!</h3>
               <p>
@@ -343,7 +358,13 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ groupId, onBack, onLef
               </p>
             </div>
           </div>
-          <RoundHistory history={roundHistory} isLoading={isLoadingHistory} />
+          <RoundHistory
+            history={roundHistory}
+            isLoading={isLoadingHistory}
+            roundContributions={roundContributions}
+            loadingRoundId={loadingRoundId}
+            onLoadRoundContributions={loadRoundContributions}
+          />
         </>
       )}
 
@@ -399,8 +420,25 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ groupId, onBack, onLef
           )}
 
           {/* Historial de rondas completadas */}
-          <RoundHistory history={roundHistory} isLoading={isLoadingHistory} />
+          <RoundHistory
+            history={roundHistory}
+            isLoading={isLoadingHistory}
+            roundContributions={roundContributions}
+            loadingRoundId={loadingRoundId}
+            onLoadRoundContributions={loadRoundContributions}
+          />
         </>
+      )}
+
+      {/* Mis cuotas en este grupo: pendientes, pagadas, fecha de pago y de validación */}
+      {isRunning && (
+        <MyContributions
+          contributions={myContributions}
+          totalPagado={myTotalPagado}
+          totalPendiente={myTotalPendiente}
+          isLoading={isLoadingMyContributions}
+          error={myContributionsError}
+        />
       )}
 
       {/* ─────────────────────────────────────────────────────────────────────────────
@@ -414,6 +452,10 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ groupId, onBack, onLef
         isFull={group.is_full}
         isRaffling={isRaffling}
         onRaffle={raffle}
+        startDate={group.start_date}
+        periodicity={group.periodicity}
+        groupStatus={group.status}
+        currentRoundNumber={currentRound?.round_number ?? null}
       />
 
       {/* Código de invitación — visible solo en BORRADOR */}
@@ -440,6 +482,41 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ groupId, onBack, onLef
         </section>
       )}
 
+      {/* Requisitos para poder iniciar (admin en BORRADOR) */}
+      {isEditable && isAdmin && !canStart && (
+        <div
+          className="group-detail__start-requirements"
+          role="status"
+          data-testid="start-requirements"
+        >
+          <p className="group-detail__requirements-title">
+            Para iniciar el pasanaku se requiere:
+          </p>
+          <ul>
+            <li
+              className={group.is_full ? 'req-met' : 'req-pending'}
+              data-testid="req-full-capacity"
+            >
+              <span className="req-indicator" aria-hidden="true" />
+              <span className="sr-only">
+                {group.is_full ? 'Cumplido: ' : 'Pendiente: '}
+              </span>
+              Cupos llenos ({group.current_members_count}/{group.total_members})
+            </li>
+            <li
+              className={hasAllTurns ? 'req-met' : 'req-pending'}
+              data-testid="req-turns-assigned"
+            >
+              <span className="req-indicator" aria-hidden="true" />
+              <span className="sr-only">
+                {hasAllTurns ? 'Cumplido: ' : 'Pendiente: '}
+              </span>
+              Turnos asignados ({currentTurns.length}/{group.total_members})
+            </li>
+          </ul>
+        </div>
+      )}
+
       {/* Panel de acciones para estado BORRADOR */}
       {isEditable && (
         <div className="group-detail__actions" data-testid="group-detail-actions">
@@ -452,7 +529,7 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ groupId, onBack, onLef
               aria-label="Editar configuración del grupo"
               data-testid="group-detail-edit-btn"
             >
-              ✏️ Editar configuración
+              Editar configuración
             </button>
           )}
 
@@ -467,37 +544,8 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ groupId, onBack, onLef
               aria-busy={isStarting || isStartingTurns}
               data-testid="start-pasanaku-btn"
             >
-              {isStarting || isStartingTurns ? 'Iniciando...' : '🚀 Iniciar pasanaku'}
+              {isStarting || isStartingTurns ? 'Iniciando...' : 'Iniciar pasanaku'}
             </button>
-          )}
-
-          {/* Requisitos para poder iniciar */}
-          {isAdmin && !canStart && (
-            <div
-              className="group-detail__start-requirements"
-              role="status"
-              data-testid="start-requirements"
-            >
-              <p className="group-detail__requirements-title">
-                Para iniciar el pasanaku se requiere:
-              </p>
-              <ul>
-                <li
-                  className={group.is_full ? 'req-met' : 'req-pending'}
-                  data-testid="req-full-capacity"
-                >
-                  {group.is_full ? '✅' : '⬜'} Cupos llenos (
-                  {group.current_members_count}/{group.total_members})
-                </li>
-                <li
-                  className={hasAllTurns ? 'req-met' : 'req-pending'}
-                  data-testid="req-turns-assigned"
-                >
-                  {hasAllTurns ? '✅' : '⬜'} Turnos asignados ({currentTurns.length}/
-                  {group.total_members})
-                </li>
-              </ul>
-            </div>
           )}
 
           {/* Abandonar grupo — solo en BORRADOR para participantes */}
@@ -517,12 +565,12 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ groupId, onBack, onLef
           {/* Recargar datos */}
           <button
             type="button"
-            className="link-btn"
+            className="link-btn group-detail__refresh-link"
             onClick={handleRefreshAll}
             aria-label="Recargar información del grupo"
             data-testid="group-detail-refresh-btn"
           >
-            ↺ Actualizar
+            Actualizar
           </button>
         </div>
       )}
@@ -537,7 +585,7 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ groupId, onBack, onLef
             aria-label="Recargar información del grupo y rondas"
             data-testid="group-detail-refresh-btn"
           >
-            ↺ Actualizar estado de rondas y cuotas
+            Actualizar estado de rondas y cuotas
           </button>
         </div>
       )}

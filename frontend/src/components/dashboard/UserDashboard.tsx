@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useGroups } from '../../hooks/useGroups';
 import { GroupList } from '../grupos/GroupList';
@@ -13,15 +13,66 @@ type DashboardView =
   | { screen: 'create' }
   | { screen: 'join' };
 
+const GROUP_HASH_PATTERN = /^#\/grupos\/(\d+)\/?$/;
+
+/** Lee la vista inicial desde la URL: `#/grupos/:id` abre el detalle de ese grupo */
+const viewFromHash = (): DashboardView => {
+  const match = GROUP_HASH_PATTERN.exec(window.location.hash);
+  return match ? { screen: 'detail', groupId: Number(match[1]) } : { screen: 'list' };
+};
+
 /**
  * UserDashboard — orquestador principal de vistas post-login.
  * Gestiona la navegación entre: listado, detalle, crear y unirse.
+ * El detalle de grupo se refleja en la URL (`#/grupos/:id`), lo que permite
+ * recargar la página, usar el botón "atrás" y abrir un grupo por enlace.
+ * El acceso lo valida el backend: un usuario ajeno recibe 403 (PDF Sec. 10, E2E 07).
  * No hace llamadas HTTP directas: delega a hooks y componentes especializados.
  */
 export const UserDashboard: React.FC = () => {
   const { user } = useAuth();
   const { groups, isLoading, error, fetchGroups, clearError } = useGroups();
-  const [view, setView] = useState<DashboardView>({ screen: 'list' });
+  const [view, setView] = useState<DashboardView>(viewFromHash);
+
+  // Sincronizar la vista -> URL
+  const detailGroupId = view.screen === 'detail' ? view.groupId : null;
+  useEffect(() => {
+    if (detailGroupId !== null) {
+      const hash = `#/grupos/${detailGroupId}`;
+      if (window.location.hash !== hash) window.location.hash = hash;
+    } else if (GROUP_HASH_PATTERN.test(window.location.hash)) {
+      window.history.replaceState(
+        null,
+        '',
+        window.location.pathname + window.location.search
+      );
+    }
+  }, [detailGroupId]);
+
+  // Sincronizar URL -> vista (botones atrás/adelante o enlace pegado)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const next = viewFromHash();
+      setView((prev) => {
+        if (next.screen === 'detail') {
+          return prev.screen === 'detail' && prev.groupId === next.groupId ? prev : next;
+        }
+        return prev.screen === 'detail' ? next : prev;
+      });
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+      // Al cerrar sesión se desmonta el dashboard: no dejar el grupo abierto en la URL
+      if (GROUP_HASH_PATTERN.test(window.location.hash)) {
+        window.history.replaceState(
+          null,
+          '',
+          window.location.pathname + window.location.search
+        );
+      }
+    };
+  }, []);
 
   if (!user) return null;
 
@@ -84,7 +135,7 @@ export const UserDashboard: React.FC = () => {
   return (
     <div className="dashboard-container" data-testid="dashboard-list-screen">
       <header className="dashboard-header">
-        <h2>¡Bienvenido, {user.first_name || user.username}! 👋</h2>
+        <h2>¡Bienvenido, {user.first_name || user.username}!</h2>
         <p>Gestiona tus grupos de ahorro rotativo.</p>
       </header>
 

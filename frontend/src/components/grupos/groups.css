@@ -63,7 +63,7 @@
   color: #b91c1c;
   border: 1px solid #fecaca;
   border-radius: 8px;
-  padding: 0.7rem 1.2rem;
+  padding: 0.6rem 1.15rem;
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
@@ -78,6 +78,11 @@
   cursor: not-allowed;
 }
 .danger-btn-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.25;
+  flex-shrink: 0;
   background-color: #fee2e2;
   color: #b91c1c;
   border: 1px solid #fecaca;
@@ -214,14 +219,24 @@
   gap: 0.5rem;
 }
 .error-alert__dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  margin: -0.05rem -0.25rem 0 0;
   background: none;
   border: none;
-  color: #991b1b;
+  border-radius: 4px;
+  color: inherit;
   cursor: pointer;
   font-size: 0.85rem;
-  padding: 0 0.2rem;
+  padding: 0;
   flex-shrink: 0;
   line-height: 1;
+}
+.error-alert__dismiss:hover {
+  background: rgba(0, 0, 0, 0.06);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -260,6 +275,8 @@
   display: flex;
   gap: 0.75rem;
   justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -378,6 +395,7 @@
 }
 .group-list__actions {
   display: flex;
+  align-items: center;
   gap: 0.75rem;
   flex-wrap: wrap;
 }
@@ -424,6 +442,7 @@
 .group-form__footer {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 0.75rem;
   margin-top: 0.5rem;
   flex-wrap: wrap;
@@ -478,9 +497,25 @@
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  min-width: 0;
 }
 .members-list__avatar {
-  font-size: 1.3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+  background: #ccfbf1;
+  color: #0f766e;
+}
+.members-list__avatar--admin {
+  background: #ede9fe;
+  color: #5b21b6;
 }
 .members-list__username {
   display: block;
@@ -500,6 +535,20 @@
 }
 .members-list__role--admin {
   color: #5b21b6;
+}
+.members-list__meta {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: 0.1rem;
+}
+.members-list__meta .members-list__role {
+  margin-top: 0;
+}
+.members-list__handle {
+  font-size: 0.75rem;
+  color: #94a3b8;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -525,6 +574,7 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 .invite-code__value {
   font-family: 'Courier New', Courier, monospace;
@@ -572,6 +622,7 @@
   display: flex;
   gap: 0.75rem;
   justify-content: flex-end;
+  align-items: center;
   flex-wrap: wrap;
 }
 .join-group-form__preview {
@@ -597,6 +648,17 @@
 }
 .join-group-form__preview-details {
   margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem 1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+}
+.group-card__slots-hint {
+  color: #64748b;
+  font-weight: 500;
 }
 .join-group-form__full-warning {
   background: #fff7ed;
@@ -618,7 +680,16 @@
 .group-detail__error-state {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 1rem;
+}
+.group-detail__error-state .error-alert {
+  align-self: stretch;
+}
+/* Las alertas ya están espaciadas por el gap del contenedor */
+.group-detail > .error-alert,
+.group-detail > .success-alert {
+  margin-bottom: 0;
 }
 .group-detail__header {
   display: flex;
@@ -741,6 +812,9 @@
   flex-wrap: wrap;
   align-items: center;
 }
+.group-detail__refresh-link {
+  margin-left: auto;
+}
 .group-detail__edit-panel {
   background: #ffffff;
   border: 1px solid #e2e8f0;
@@ -768,13 +842,46 @@
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.4rem;
+}
+.group-detail__start-requirements li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 .req-met {
   color: #166534;
 }
 .req-pending {
   color: #64748b;
+}
+/* Indicador visual de requisito: círculo con check (cumplido) o vacío (pendiente) */
+.req-indicator {
+  position: relative;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+.req-pending .req-indicator {
+  border: 2px solid #cbd5e1;
+  background: #ffffff;
+}
+.req-met .req-indicator {
+  background: #16a34a;
+}
+.req-met .req-indicator::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid #ffffff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
 }
 
 /* Pasanaku Finalizado Banner */
@@ -786,9 +893,6 @@
   display: flex;
   align-items: center;
   gap: 1rem;
-}
-.pasanaku-finished-banner .celebration-icon {
-  font-size: 2.2rem;
 }
 .pasanaku-finished-banner h3 {
   margin: 0 0 0.25rem;

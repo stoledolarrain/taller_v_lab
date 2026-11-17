@@ -9,6 +9,8 @@ import type { Contribution } from '../types/contributions';
 interface UseCurrentRoundOptions {
   groupId: number;
   initialRound?: RoundDetail | null;
+  /** Si es false no se consulta la ronda ni el historial (ej. grupo en BORRADOR) */
+  enabled?: boolean;
   onRoundClosed?: (response: CloseRoundResponse) => void;
   onPaymentUpdated?: () => void;
 }
@@ -24,6 +26,10 @@ interface UseCurrentRoundReturn {
   error: string | null;
   successMessage: string | null;
   canClose: boolean;
+  /** Cuotas de rondas del historial ya consultadas, indexadas por id de ronda */
+  roundContributions: Record<number, Contribution[]>;
+  loadingRoundId: number | null;
+  loadRoundContributions: (roundId: number) => Promise<void>;
   fetchCurrentRound: () => Promise<void>;
   fetchHistory: () => Promise<void>;
   closeCurrentRound: () => Promise<CloseRoundResponse | void>;
@@ -36,6 +42,7 @@ interface UseCurrentRoundReturn {
 export function useCurrentRound({
   groupId,
   initialRound = null,
+  enabled = true,
   onRoundClosed,
   onPaymentUpdated,
 }: UseCurrentRoundOptions): UseCurrentRoundReturn {
@@ -48,7 +55,31 @@ export function useCurrentRound({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  const [roundContributions, setRoundContributions] = useState<
+    Record<number, Contribution[]>
+  >({});
+  const [loadingRoundId, setLoadingRoundId] = useState<number | null>(null);
+
   const clearError = useCallback(() => setError(null), []);
+
+  const loadRoundContributions = useCallback(async (roundId: number) => {
+    setLoadingRoundId(roundId);
+    try {
+      const detail = await roundsService.getRoundDetail(roundId);
+      setRoundContributions((prev) => ({
+        ...prev,
+        [roundId]: detail.contributions ?? [],
+      }));
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : 'Error al cargar las cuotas de la ronda seleccionada.'
+      );
+    } finally {
+      setLoadingRoundId(null);
+    }
+  }, []);
   const clearSuccess = useCallback(() => setSuccessMessage(null), []);
 
   const fetchCurrentRound = useCallback(async () => {
@@ -74,7 +105,6 @@ export function useCurrentRound({
       const data = await roundsService.getRoundHistory(groupId);
       setHistory(data);
     } catch {
-      // Historial opcional; no bloquea la vista principal
     } finally {
       setIsLoadingHistory(false);
     }
@@ -168,11 +198,14 @@ export function useCurrentRound({
     ? puedeCerrarRonda(contributions) && !round.has_pending_contributions
     : false;
 
+  // Solo hay rondas cuando el pasanaku está INICIADO o FINALIZADO.
+  // Al pasar de BORRADOR a INICIADO, `enabled` cambia y se cargan automáticamente.
   useEffect(() => {
+    if (!enabled) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchCurrentRound();
     fetchHistory();
-  }, [fetchCurrentRound, fetchHistory]);
+  }, [enabled, fetchCurrentRound, fetchHistory]);
 
   return {
     round,
@@ -185,6 +218,9 @@ export function useCurrentRound({
     error,
     successMessage,
     canClose,
+    roundContributions,
+    loadingRoundId,
+    loadRoundContributions,
     fetchCurrentRound,
     fetchHistory,
     closeCurrentRound,

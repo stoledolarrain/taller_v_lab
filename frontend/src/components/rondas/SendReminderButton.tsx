@@ -48,7 +48,7 @@ export const SendReminderButton: React.FC<SendReminderButtonProps> = ({
         aria-label="Enviar recordatorio interno a los deudores de la ronda actual"
         data-testid="send-reminders-btn"
       >
-        {isSending ? 'Enviando recordatorios...' : '📢 Recordar a morosos'}
+        {isSending ? 'Enviando recordatorios...' : 'Recordar a morosos'}
       </button>
 
       {isOpen && (

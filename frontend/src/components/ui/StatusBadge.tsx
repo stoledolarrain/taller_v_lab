@@ -21,7 +21,6 @@ const STATUS_CONFIG: Record<AnyStatus, { label: string; className: string }> = {
   // Round statuses
   ACTIVA: { label: 'Activa', className: 'status-badge--activa' },
   CERRADA: { label: 'Cerrada', className: 'status-badge--cerrada' },
-  COMPLETADA: { label: 'Completada', className: 'status-badge--cerrada' },
 };
 
 /**

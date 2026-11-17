@@ -177,7 +177,7 @@ export const JoinGroupForm: React.FC<JoinGroupFormProps> = ({ onSuccess, onCance
               role="alert"
               data-testid="preview-full-warning"
             >
-              ⚠️ Este grupo ya no tiene cupos disponibles.
+              Este grupo ya no tiene cupos disponibles.
             </div>
           )}
 

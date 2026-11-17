@@ -75,7 +75,7 @@ export const InviteCodeDisplay: React.FC<InviteCodeDisplayProps> = ({
           aria-label={copied ? 'Código copiado' : 'Copiar código de invitación'}
           data-testid="invite-code-copy-btn"
         >
-          {copied ? '✓ Copiado' : 'Copiar'}
+          {copied ? 'Copiado' : 'Copiar'}
         </button>
       </div>
 
@@ -88,7 +88,7 @@ export const InviteCodeDisplay: React.FC<InviteCodeDisplayProps> = ({
           aria-label="Regenerar código de invitación (el código anterior dejará de funcionar)"
           data-testid="invite-code-regen-btn"
         >
-          {isRegenerating ? 'Regenerando...' : '↺ Regenerar código'}
+          {isRegenerating ? 'Regenerando...' : 'Regenerar código'}
         </button>
       )}
     </div>

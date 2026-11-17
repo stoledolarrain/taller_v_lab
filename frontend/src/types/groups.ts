@@ -4,7 +4,8 @@ import type { User } from './auth';
 export type GroupStatus = 'BORRADOR' | 'INICIADO' | 'FINALIZADO';
 export type Periodicity = 'SEMANAL' | 'QUINCENAL' | 'MENSUAL';
 export type MembershipRole = 'ADMIN' | 'PARTICIPANTE';
-export type RoundStatus = 'ACTIVA' | 'CERRADA' | 'PENDIENTE' | 'COMPLETADA';
+// Refleja exactamente RoundStatus del backend (apps/groups/models.py)
+export type RoundStatus = 'ACTIVA' | 'CERRADA';
 export type ContributionStatus = 'PENDIENTE' | 'PAGADA';
 
 // ─── Membership ───────────────────────────────────────────────────────────────
@@ -205,4 +206,58 @@ export function puedeIniciarGrupo(
   group: Pick<GroupSummary, 'status' | 'can_start'>
 ): boolean {
   return group.status === 'BORRADOR' && group.can_start;
+}
+
+/**
+ * Calcula la fecha estimada en la que se realiza un turno, a partir de la fecha
+ * de inicio del pasanaku y su periodicidad. El turno 1 coincide con la fecha de inicio.
+ * - SEMANAL: cada 7 días
+ * - QUINCENAL: cada 15 días
+ * - MENSUAL: el mismo día de cada mes (ajustado al último día si el mes es más corto)
+ *
+ * Es una estimación de calendario para el participante: el avance real de las
+ * rondas depende de que el administrador cierre cada una.
+ *
+ * @returns Fecha en formato YYYY-MM-DD, o null si los datos son inválidos.
+ *
+ * @example
+ *   calcularFechaEstimadaTurno('2026-01-31', 'MENSUAL', 2)  // → '2026-02-28'
+ *   calcularFechaEstimadaTurno('2026-01-01', 'SEMANAL', 3)  // → '2026-01-15'
+ */
+export function calcularFechaEstimadaTurno(
+  fechaInicio: string,
+  periodicidad: Periodicity,
+  numeroTurno: number
+): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(fechaInicio ?? '');
+  if (!match || numeroTurno < 1) return null;
+
+  const anio = Number(match[1]);
+  const mes = Number(match[2]) - 1;
+  const dia = Number(match[3]);
+  const pasos = numeroTurno - 1;
+
+  let fecha: Date;
+  if (periodicidad === 'MENSUAL') {
+    const mesDestino = new Date(anio, mes + pasos, 1);
+    const diasEnMes = new Date(
+      mesDestino.getFullYear(),
+      mesDestino.getMonth() + 1,
+      0
+    ).getDate();
+    fecha = new Date(
+      mesDestino.getFullYear(),
+      mesDestino.getMonth(),
+      Math.min(dia, diasEnMes)
+    );
+  } else {
+    const diasPorPeriodo = periodicidad === 'SEMANAL' ? 7 : 15;
+    fecha = new Date(anio, mes, dia + pasos * diasPorPeriodo);
+  }
+
+  if (isNaN(fecha.getTime())) return null;
+  const yyyy = fecha.getFullYear();
+  const mm = String(fecha.getMonth() + 1).padStart(2, '0');
+  const dd = String(fecha.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }

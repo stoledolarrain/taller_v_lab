@@ -2,6 +2,15 @@
 import React, { createContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { User, AuthTokens, LoginCredentials, RegisterData } from '../types/auth';
 import { authService } from '../services/authService';
+import {
+  ApiError,
+  REFRESH_KEY,
+  SESSION_EXPIRED_EVENT,
+  SESSION_EXPIRED_MESSAGE,
+  TOKEN_KEY,
+  USER_KEY,
+  clearStoredSession,
+} from '../services/apiClient';
 
 export interface AuthContextType {
   user: User | null;
@@ -17,10 +26,6 @@ export interface AuthContextType {
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const TOKEN_KEY = 'pasanaku_access_token';
-const REFRESH_KEY = 'pasanaku_refresh_token';
-const USER_KEY = 'pasanaku_user';
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
@@ -50,11 +55,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = useCallback(() => {
     setUser(null);
     setTokens(null);
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(REFRESH_KEY);
-    localStorage.removeItem(USER_KEY);
+    clearStoredSession();
     clearError();
   }, []);
+
+  // Sesión expirada y no renovable (emitido por apiClient): volver al login con aviso
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      logout();
+      setError(SESSION_EXPIRED_MESSAGE);
+    };
+    window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
+  }, [logout]);
 
   const login = async (credentials: LoginCredentials) => {
     setIsLoading(true);
@@ -108,8 +121,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const freshUser = await authService.getMe();
           setUser(freshUser);
           localStorage.setItem(USER_KEY, JSON.stringify(freshUser));
-        } catch {
-          logout();
+        } catch (err) {
+          // Solo se cierra la sesión si el backend rechazó el token (401).
+          // Si el backend no responde (apagado / sin red) se conserva la sesión guardada.
+          if (err instanceof ApiError && err.status === 401) {
+            logout();
+          }
         }
       }
       setIsLoading(false);

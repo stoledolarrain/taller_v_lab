@@ -37,13 +37,21 @@ def user_register(
     if User.objects.filter(email__iexact=email).exists():
         raise ValidationError({'email': 'El correo electrónico ya está registrado.'})
 
+    clean_ci = ci.strip()
+    if clean_ci and User.objects.filter(ci__iexact=clean_ci).exists():
+        raise ValidationError({'ci': 'Ya existe un usuario registrado con esta cédula de identidad.'})
+
+    clean_phone = phone_number.strip()
+    if clean_phone and User.objects.filter(phone_number=clean_phone).exists():
+        raise ValidationError({'phone_number': 'Ya existe un usuario registrado con este número de celular/teléfono.'})
+
     user = User(
         username=username.strip(),
         email=email.strip().lower(),
         first_name=first_name.strip(),
         last_name=last_name.strip(),
-        phone_number=phone_number.strip(),
-        ci=ci.strip(),
+        phone_number=clean_phone,
+        ci=clean_ci,
     )
     user.set_password(password)
     user.save()

@@ -102,3 +102,51 @@ class AuthAPITests(APITestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.first_name, 'Luis Alberto')
         self.assertEqual(self.user.phone_number, '79998877')
+
+    def test_register_duplicate_ci_fails(self):
+        # self.user ya tiene ci='5432100 CB'
+        payload = {
+            'username': 'nuevo_ci_duplicado',
+            'email': 'nuevo_ci@pasanaku.bo',
+            'password': 'Password123!',
+            'ci': '5432100 CB',
+        }
+        response = self.client.post(self.register_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('ci', response.data)
+
+    def test_register_duplicate_phone_number_fails(self):
+        # self.user ya tiene phone_number='76543210'
+        payload = {
+            'username': 'nuevo_tel_duplicado',
+            'email': 'nuevo_tel@pasanaku.bo',
+            'password': 'Password123!',
+            'phone_number': '76543210',
+        }
+        response = self.client.post(self.register_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('phone_number', response.data)
+
+    def test_update_me_duplicate_ci_fails(self):
+        User.objects.create_user(
+            username='otro_usuario',
+            email='otro@pasanaku.bo',
+            password='Password123!',
+            ci='11223344 LP'
+        )
+        self.client.force_authenticate(user=self.user)
+        response = self.client.patch(self.me_url, {'ci': '11223344 LP'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('ci', response.data)
+
+    def test_update_me_duplicate_phone_fails(self):
+        User.objects.create_user(
+            username='otro_usuario_tel',
+            email='otro_tel@pasanaku.bo',
+            password='Password123!',
+            phone_number='78889900'
+        )
+        self.client.force_authenticate(user=self.user)
+        response = self.client.patch(self.me_url, {'phone_number': '78889900'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('phone_number', response.data)

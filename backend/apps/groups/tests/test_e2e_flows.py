@@ -30,7 +30,6 @@ class PasanakuE2EFlowsTests(APITestCase):
     def setUp(self):
         self.clients = {}
 
-    # ------------------------------------------------------------------ helpers
     def _register_and_login(self, key: str):
         """Registra un usuario vía API, inicia sesión y devuelve (user, client autenticado)."""
         n = len(self.clients) + 1
@@ -110,8 +109,8 @@ class PasanakuE2EFlowsTests(APITestCase):
             )
             self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
 
-    # -------------------------------------------------------------------- tests
     def test_e2e_01_create_pasanaku_and_fill_all_slots(self):
+        """Flujo E2E: Creación de grupo por admin y unión secuencial de participantes hasta llenar cupos."""
         self.admin, self.admin_api = self._register_and_login('admin_e2e')
         group_data = self._create_group(self.admin_api, total_members=3)
         self.assertEqual(group_data['status'], GroupStatus.BORRADOR)
@@ -133,6 +132,7 @@ class PasanakuE2EFlowsTests(APITestCase):
         self.assertEqual(response.data['remaining_slots'], 0)
 
     def test_e2e_02_assign_turns_and_start_pasanaku(self):
+        """Flujo E2E: Sorteo de turnos, inicio de grupo y congelamiento de configuraciones (inmutabilidad)."""
         group_id = self._setup_full_group()
 
         response = self.admin_api.post(f'/api/v1/groups/{group_id}/turns/raffle/', {}, format='json')
@@ -165,6 +165,7 @@ class PasanakuE2EFlowsTests(APITestCase):
         self.assertEqual(PasanakuGroup.objects.get(id=group_id).quota_amount, Decimal('100.00'))
 
     def test_e2e_03_report_and_validate_all_contributions(self):
+        """Flujo E2E: Reporte de aportes por cada participante y validación integral por el administrador."""
         group_id = self._setup_started_group()
 
         for api in (self.admin_api, self.u2_api, self.u3_api):
@@ -183,6 +184,7 @@ class PasanakuE2EFlowsTests(APITestCase):
             self.assertEqual(c.validated_by, self.admin)
 
     def test_e2e_04_debt_lock_enforcement_on_round_close(self):
+        """Flujo E2E: Bloqueo de cierre por morosidad, consulta de deudores y envío de recordatorio interno."""
         group_id = self._setup_started_group()
         round_id = self._current_round(group_id)['id']
 
@@ -218,6 +220,7 @@ class PasanakuE2EFlowsTests(APITestCase):
         self.assertEqual(len(response.data), 1)
 
     def test_e2e_05_close_round_deliver_pot_and_advance_turn(self):
+        """Flujo E2E: Liquidación total, entrega del pozo al beneficiario del turno 1 y apertura de Ronda 2."""
         group_id = self._setup_started_group()
         round_1 = Round.objects.get(group_id=group_id, round_number=1)
         self._pay_and_validate_all(round_1.id)
@@ -246,6 +249,7 @@ class PasanakuE2EFlowsTests(APITestCase):
         )
 
     def test_e2e_06_query_history_rounds_and_beneficiaries_audit(self):
+        """Flujo E2E: Ciclo completo hasta estado FINALIZADO y auditoría de rondas y beneficiarios."""
         group_id = self._setup_started_group()
 
         last_response = None
@@ -280,6 +284,7 @@ class PasanakuE2EFlowsTests(APITestCase):
         self.assertEqual(len(set(beneficiaries)), 3)
 
     def test_e2e_07_access_control_and_user_isolation(self):
+        """Flujo E2E: Aislamiento multidominio y denegación de acceso cruzado entre grupos independientes."""
         group_a_id = self._setup_started_group()
 
         owner_b, owner_b_api = self._register_and_login('owner_b_e2e')

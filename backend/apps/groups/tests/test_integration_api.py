@@ -45,7 +45,6 @@ class PasanakuIntegrationAPITests(APITestCase):
             first_name='Outsider', last_name='User', ci='9999999 LP', phone_number='79999999'
         )
 
-    # ------------------------------------------------------------------ helpers
     def _auth(self, user: User):
         """Autentica las peticiones del cliente usando SimpleJWT."""
         token = str(RefreshToken.for_user(user).access_token)
@@ -89,8 +88,8 @@ class PasanakuIntegrationAPITests(APITestCase):
         group.refresh_from_db()
         return group
 
-    # -------------------------------------------------------------------- tests
     def test_01_user_creation_and_persistence(self):
+        """Registro de usuario vía API REST y persistencia en BD con contraseña hasheada."""
         payload = {
             'username': 'nuevo_user',
             'email': 'nuevo@test.com',
@@ -111,6 +110,7 @@ class PasanakuIntegrationAPITests(APITestCase):
         self.assertTrue(user.check_password('Password123!'))
 
     def test_02_group_creation_and_configuration_retrieval(self):
+        """Creación de grupo vía API, rol ADMIN automático y consulta de configuración inicial."""
         group = self._create_group_via_api(total_members=3)
 
         self.assertEqual(group.status, GroupStatus.BORRADOR)
@@ -126,6 +126,7 @@ class PasanakuIntegrationAPITests(APITestCase):
         self.assertEqual(response.data['total_members'], 3)
 
     def test_03_join_participants_via_invite_code(self):
+        """Unión de participantes mediante invite_code, cálculo de cupos y estado de llenado."""
         group = self._create_group_via_api(total_members=3)
         self.assertEqual(group.remaining_slots, 2)
 
@@ -133,7 +134,6 @@ class PasanakuIntegrationAPITests(APITestCase):
         response = self.client.post(
             '/api/v1/groups/join/', {'invite_code': group.invite_code}, format='json'
         )
-        # La API responde 200 OK al unirse (la membresía se crea en BD).
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
         self.assertEqual(response.data['group']['remaining_slots'], 1)
         membership = GroupMembership.objects.get(group=group, user=self.user_2)
@@ -149,6 +149,7 @@ class PasanakuIntegrationAPITests(APITestCase):
         self.assertEqual(group.memberships.count(), 3)
 
     def test_04_turn_generation_and_persistence(self):
+        """Sorteo de turnos vía endpoint REST y persistencia en base de datos (1:1 estricto)."""
         group = self._create_full_group()
         self._auth(self.admin_user)
 
@@ -163,6 +164,7 @@ class PasanakuIntegrationAPITests(APITestCase):
         self.assertEqual({t.user_id for t in turns}, member_ids)
 
     def test_05_automatic_contribution_generation_on_round_creation(self):
+        """Inicio de pasanaku vía API y generación automática de Ronda 1 con aportes PENDIENTES."""
         group = self._create_full_group()
         self._auth(self.admin_user)
         self.client.post(f'/api/v1/groups/{group.id}/turns/raffle/', {}, format='json')
@@ -180,6 +182,7 @@ class PasanakuIntegrationAPITests(APITestCase):
         self.assertEqual(round_1.expected_amount, Decimal('300.00'))
 
     def test_06_report_and_validate_contribution(self):
+        """Reporte de pago por participante y validación posterior por el administrador."""
         group = self._create_started_group()
         contribution = Contribution.objects.get(
             round__group=group, round__round_number=1, user=self.user_2
@@ -204,6 +207,7 @@ class PasanakuIntegrationAPITests(APITestCase):
         self.assertIsNotNone(contribution.validation_date)
 
     def test_07_query_pending_debtors_and_financial_balance(self):
+        """Consulta de resumen financiero: total recaudado, total pendiente y lista de deudores."""
         group = self._create_started_group()
         paid = Contribution.objects.get(round__group=group, round__round_number=1, user=self.user_2)
         self._auth(self.admin_user)
@@ -222,6 +226,7 @@ class PasanakuIntegrationAPITests(APITestCase):
         self.assertNotIn(self.user_2.id, debtor_ids)
 
     def test_08_reject_closing_incomplete_round_debt_lock(self):
+        """Rechazo (HTTP 400) al intentar cerrar una ronda con deudas pendientes (bloqueo por deuda)."""
         group = self._create_started_group()
         round_1 = Round.objects.get(group=group, round_number=1)
         paid = Contribution.objects.get(round=round_1, user=self.user_2)
@@ -237,6 +242,7 @@ class PasanakuIntegrationAPITests(APITestCase):
         self.assertFalse(Round.objects.filter(group=group, round_number=2).exists())
 
     def test_09_close_completed_round_and_activate_next_round(self):
+        """Cierre de ronda completa vía API, entrega de pozo y activación automática de ronda siguiente."""
         group = self._create_started_group()
         round_1 = Round.objects.get(group=group, round_number=1)
         self._auth(self.admin_user)
@@ -262,6 +268,7 @@ class PasanakuIntegrationAPITests(APITestCase):
         )
 
     def test_10_permission_denied_participant_cannot_perform_admin_actions(self):
+        """Control de permisos (HTTP 403 Forbidden) para acciones administrativas reservadas."""
         group = self._create_full_group()
         self._auth(self.user_2)
 
@@ -292,6 +299,7 @@ class PasanakuIntegrationAPITests(APITestCase):
         self.assertEqual(round_1.status, RoundStatus.ACTIVA)
 
     def test_11_isolation_check_non_member_cannot_view_group_data(self):
+        """Aislamiento estricto: usuarios ajenos reciben 403 y usuarios sin sesión reciben 401."""
         group = self._create_started_group()
         self._auth(self.outsider)
 

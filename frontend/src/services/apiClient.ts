@@ -65,6 +65,14 @@ async function refreshAccessToken(): Promise<boolean> {
   return refreshPromise;
 }
 
+const FIELD_LABELS: Record<string, string> = {
+  ci: 'Cédula de Identidad',
+  phone_number: 'Celular / Teléfono',
+  username: 'Nombre de usuario',
+  email: 'Correo electrónico',
+  password: 'Contraseña',
+};
+
 function extractErrorMessage(data: Record<string, unknown> | null): string {
   let errorMessage = 'Ha ocurrido un error inesperado';
   if (data) {
@@ -75,10 +83,11 @@ function extractErrorMessage(data: Record<string, unknown> | null): string {
     } else if (typeof data === 'object') {
       const firstKey = Object.keys(data)[0];
       const val = data[firstKey];
+      const label = FIELD_LABELS[firstKey] || firstKey;
       if (Array.isArray(val) && val.length > 0) {
-        errorMessage = `${firstKey}: ${val[0]}`;
+        errorMessage = `${label}: ${val[0]}`;
       } else if (typeof val === 'string') {
-        errorMessage = `${firstKey}: ${val}`;
+        errorMessage = `${label}: ${val}`;
       }
     }
   }

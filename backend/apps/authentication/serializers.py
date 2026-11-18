@@ -21,6 +21,28 @@ class UserSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at']
 
+    def validate_ci(self, value):
+        clean_val = value.strip() if value else ''
+        if clean_val:
+            user = self.instance
+            qs = User.objects.filter(ci__iexact=clean_val)
+            if user:
+                qs = qs.exclude(pk=user.pk)
+            if qs.exists():
+                raise serializers.ValidationError('Ya existe un usuario registrado con esta cédula de identidad.')
+        return clean_val
+
+    def validate_phone_number(self, value):
+        clean_val = value.strip() if value else ''
+        if clean_val:
+            user = self.instance
+            qs = User.objects.filter(phone_number=clean_val)
+            if user:
+                qs = qs.exclude(pk=user.pk)
+            if qs.exists():
+                raise serializers.ValidationError('Ya existe un usuario registrado con este número de celular/teléfono.')
+        return clean_val
+
 
 class RegisterInputSerializer(serializers.Serializer):
     """Validador de datos de entrada para registro."""

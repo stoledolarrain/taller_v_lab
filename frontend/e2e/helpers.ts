@@ -37,7 +37,8 @@ export function futureDate(days = 7): string {
 /** Abre una sesión de navegador independiente (otro usuario) y lo registra por la UI */
 export async function newRegisteredUser(
   browser: Browser,
-  prefix: string
+  prefix: string,
+  extra?: { ci?: string; phoneNumber?: string }
 ): Promise<TestUser> {
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -48,6 +49,12 @@ export async function newRegisteredUser(
 
   await page.locator('#firstName').fill(prefix.replace(/_/g, ' '));
   await page.locator('#lastName').fill('E2E');
+  if (extra?.ci) {
+    await page.locator('#ci').fill(extra.ci);
+  }
+  if (extra?.phoneNumber) {
+    await page.locator('#phoneNumber').fill(extra.phoneNumber);
+  }
   await page.locator('#username').fill(username);
   await page.locator('#email').fill(`${username}@e2e.pasanaku.bo`);
   await page.locator('#password').fill(PASSWORD);

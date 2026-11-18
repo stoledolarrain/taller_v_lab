@@ -1,0 +1,2 @@
+# Forzar saltos de línea LF para scripts de shell (evita errores \r en contenedores Docker y Linux)
+*.sh text eol=lf

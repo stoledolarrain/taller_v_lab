@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.12-slim-bookworm
 
 # Evita que Python escriba archivos .pyc y habilita unbuffered stdout/stderr
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -6,14 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Instalar dependencias del sistema requeridas para PostgreSQL y compilación
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    libpq-dev \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
-
-# Instalar dependencias de Python
+# Instalar dependencias de Python (psycopg2-binary provee binarios precompilados)
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt

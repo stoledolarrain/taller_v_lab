@@ -105,6 +105,7 @@ export function useCurrentRound({
       const data = await roundsService.getRoundHistory(groupId);
       setHistory(data);
     } catch {
+      setHistory([]);
     } finally {
       setIsLoadingHistory(false);
     }

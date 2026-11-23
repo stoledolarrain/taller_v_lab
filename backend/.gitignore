@@ -46,4 +46,7 @@ staticfiles/
 # Pytest / coverage
 .pytest_cache/
 .coverage
+coverage.xml
+pytest.xml
+pytest-coverage.txt
 htmlcov/

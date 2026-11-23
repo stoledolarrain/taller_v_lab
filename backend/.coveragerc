@@ -1,0 +1,23 @@
+[run]
+source = apps
+omit =
+    */tests/*
+    */migrations/*
+    */apps.py
+    */__init__.py
+    */admin.py
+
+[report]
+show_missing = True
+skip_covered = False
+fail_under = 90
+exclude_lines =
+    pragma: no cover
+    def __str__
+    def __repr__
+    if TYPE_CHECKING:
+    raise NotImplementedError
+
+[html]
+directory = htmlcov
+title = Reporte de Cobertura de Pruebas - Pasanaku Digital

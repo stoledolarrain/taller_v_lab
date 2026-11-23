@@ -24,6 +24,9 @@ staticfiles/
 # Testing & Coverage
 .pytest_cache/
 .coverage
+coverage.xml
+pytest.xml
+pytest-coverage.txt
 htmlcov/
 test-results/
 playwright-report/

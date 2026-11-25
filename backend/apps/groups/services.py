@@ -20,6 +20,7 @@ from .models import (
     ContributionStatus,
     generate_invite_code,
 )
+from .realtime import emit_group_event, emit_user_event
 
 
 @transaction.atomic
@@ -125,6 +126,15 @@ def group_update(
         group.total_members = total_members
 
     group.save()
+    emit_group_event(
+        group_id=group.id,
+        event='group_updated',
+        data={
+            'name': group.name,
+            'quota_amount': str(group.quota_amount),
+            'total_members': group.total_members,
+        },
+    )
     return group
 
 
@@ -159,6 +169,17 @@ def group_join_by_code(
         group=group,
         user=user,
         role=MembershipRole.PARTICIPANTE
+    )
+
+    emit_group_event(
+        group_id=group.id,
+        event='member_joined',
+        data={
+            'user_id': user.id,
+            'username': user.username,
+            'remaining_slots': group.remaining_slots,
+            'is_full': group.is_full,
+        },
     )
 
     return membership
@@ -211,6 +232,11 @@ def group_leave(
     # Si tenía un turno asignado en borrador, se elimina
     PasanakuTurn.objects.filter(group=group, user=user).delete()
     membership.delete()
+    emit_group_event(
+        group_id=group.id,
+        event='member_left',
+        data={'user_id': user.id, 'username': user.username},
+    )
 
 
 @transaction.atomic
@@ -239,6 +265,11 @@ def group_remove_member(
 
     PasanakuTurn.objects.filter(group=group, user=target_membership.user).delete()
     target_membership.delete()
+    emit_group_event(
+        group_id=group.id,
+        event='member_removed',
+        data={'user_id': target_user_id},
+    )
 
 
 @transaction.atomic
@@ -316,6 +347,12 @@ def turn_assign_manual(
         for item in sorted(assignments, key=lambda x: x['turn_number'])
     ]
 
+    emit_group_event(
+        group_id=group.id,
+        event='turns_updated',
+        data={'mode': 'manual', 'total_turns': len(created_turns)},
+    )
+
     return created_turns
 
 
@@ -359,6 +396,12 @@ def turn_raffle_auto(
         )
         for turn_number, user_id in enumerate(shuffled_user_ids, start=1)
     ]
+
+    emit_group_event(
+        group_id=group.id,
+        event='turns_updated',
+        data={'mode': 'raffle', 'total_turns': len(created_turns)},
+    )
 
     return created_turns
 
@@ -433,11 +476,22 @@ def group_start(
     group.save(update_fields=['status', 'updated_at'])
 
     turn_1 = group.turns.select_related('user').get(turn_number=1)
-    round_create(
+    round_1 = round_create(
         group=group,
         round_number=1,
         beneficiary=turn_1.user,
         start_date=group.start_date
+    )
+
+    emit_group_event(
+        group_id=group.id,
+        event='group_started',
+        data={
+            'status': group.status,
+            'round_id': round_1.id,
+            'round_number': 1,
+            'beneficiary_id': turn_1.user_id,
+        },
     )
 
     return group
@@ -474,6 +528,16 @@ def contribution_report_payment(
         contribution.notes = notes.strip()
 
     contribution.save(update_fields=['payment_date', 'notes', 'updated_at'])
+    emit_group_event(
+        group_id=contribution.round.group_id,
+        event='contribution_reported',
+        data={
+            'contribution_id': contribution.id,
+            'round_id': contribution.round_id,
+            'user_id': contribution.user_id,
+            'notes': contribution.notes,
+        },
+    )
     return contribution
 
 
@@ -510,6 +574,17 @@ def contribution_validate_payment(
         contribution.payment_date = now
 
     contribution.save(update_fields=['status', 'validation_date', 'validated_by', 'payment_date', 'updated_at'])
+    emit_group_event(
+        group_id=contribution.round.group_id,
+        event='contribution_validated',
+        data={
+            'contribution_id': contribution.id,
+            'round_id': contribution.round_id,
+            'user_id': contribution.user_id,
+            'validated_by': admin_user.id,
+            'status': contribution.status,
+        },
+    )
     return contribution
 
 
@@ -581,6 +656,19 @@ def round_close_and_advance(
         group.status = GroupStatus.FINALIZADO
         group.save(update_fields=['status', 'updated_at'])
 
+    emit_group_event(
+        group_id=group.id,
+        event='round_closed',
+        data={
+            'closed_round_id': round_obj.id,
+            'closed_round_number': round_obj.round_number,
+            'next_round_id': next_round.id if next_round else None,
+            'next_round_number': next_round.round_number if next_round else None,
+            'is_finished': next_round is None,
+            'group_status': group.status,
+        },
+    )
+
     return round_obj, next_round
 
 
@@ -630,6 +718,17 @@ def reminder_create_for_pending(
             message=msg,
         )
         created_reminders.append(reminder)
+        emit_user_event(
+            user_id=reminder.recipient_id,
+            event='reminder_received',
+            data={
+                'reminder_id': reminder.id,
+                'group_id': group.id,
+                'group_name': group.name,
+                'round_number': current_round.round_number,
+                'message': reminder.message,
+            },
+        )
 
     return created_reminders
 

@@ -19,6 +19,18 @@ services:
     networks:
       - pasanaku_net
 
+  redis:
+    image: redis:7-alpine
+    container_name: pasanaku_redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pasanaku_net
+
   backend:
     build:
       context: ./backend
@@ -33,10 +45,13 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-pasanaku_password}
       DB_HOST: db
       DB_PORT: "5432"
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     ports:
       - "8000:8000"
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - pasanaku_net

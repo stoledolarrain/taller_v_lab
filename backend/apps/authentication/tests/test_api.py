@@ -150,3 +150,14 @@ class AuthAPITests(APITestCase):
         response = self.client.patch(self.me_url, {'phone_number': '78889900'}, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('phone_number', response.data)
+
+    def test_reputation_exposed_and_read_only_in_me(self):
+        self.client.force_authenticate(user=self.user)
+        res_get = self.client.get(self.me_url)
+        self.assertEqual(res_get.status_code, status.HTTP_200_OK)
+        self.assertEqual(res_get.data['reputation'], 'MEDIA')
+
+        res_patch = self.client.patch(self.me_url, {'reputation': 'ALTA'}, format='json')
+        self.assertEqual(res_patch.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.reputation, 'MEDIA')

@@ -12,6 +12,7 @@ from .serializers import (
     PasanakuGroupCreateInputSerializer,
     PasanakuGroupUpdateInputSerializer,
     JoinGroupInputSerializer,
+    JoinGroupByQRInputSerializer,
     JoinRequestMessageInputSerializer,
     GroupJoinRequestSerializer,
     RemoveMemberInputSerializer,
@@ -28,6 +29,7 @@ from .services import (
     group_create,
     group_update,
     group_join_by_code,
+    group_join_by_qr,
     group_join_or_request,
     join_request_approve,
     join_request_reject,
@@ -208,6 +210,31 @@ class GroupJoinAPIView(APIView):
             {
                 'message': f'Te has unido exitosamente al grupo "{membership.group.name}".',
                 'group': detail_serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class GroupJoinByQRAPIView(APIView):
+    """
+    Unirse automáticamente a un grupo escaneando su código QR (omite reputación y aprobación).
+    POST /api/v1/groups/join-qr/
+    Body: {"qr_token": "<token>"}
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = JoinGroupByQRInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        membership = group_join_by_qr(
+            user=request.user,
+            qr_token=serializer.validated_data['qr_token'],
+        )
+        return Response(
+            {
+                'message': f'Te has unido exitosamente al grupo "{membership.group.name}" vía QR.',
+                'group': PasanakuGroupDetailSerializer(membership.group, context={'request': request}).data,
             },
             status=status.HTTP_200_OK,
         )

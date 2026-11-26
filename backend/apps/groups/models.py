@@ -45,6 +45,11 @@ def generate_invite_code() -> str:
     return secrets.token_hex(4).upper()
 
 
+def generate_qr_token() -> str:
+    """Genera un token aleatorio exclusivo para ingreso directo mediante escaneo QR."""
+    return secrets.token_urlsafe(16)
+
+
 class PasanakuGroup(models.Model):
     """
     Modelo representativo de un grupo de Pasanaku (ahorro rotativo).
@@ -95,6 +100,15 @@ class PasanakuGroup(models.Model):
         db_index=True,
         default=generate_invite_code,
         help_text='Código único para que otros participantes se unan al grupo.'
+    )
+
+    qr_token = models.CharField(
+        'token QR de ingreso directo',
+        max_length=32,
+        unique=True,
+        db_index=True,
+        default=generate_qr_token,
+        help_text='Token único embebido en el QR del grupo; permite ingreso directo omitiendo reputación.'
     )
 
     is_public = models.BooleanField(

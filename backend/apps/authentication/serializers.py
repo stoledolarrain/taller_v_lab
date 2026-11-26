@@ -17,9 +17,10 @@ class UserSerializer(serializers.ModelSerializer):
             'full_name',
             'phone_number',
             'ci',
+            'reputation',
             'created_at',
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'reputation', 'created_at']
 
     def validate_ci(self, value):
         clean_val = value.strip() if value else ''

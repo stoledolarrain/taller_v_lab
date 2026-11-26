@@ -19,6 +19,7 @@ class UserModelTests(TestCase):
         self.assertEqual(user.username, 'carlos123')
         self.assertEqual(user.email, 'carlos@pasanaku.bo')
         self.assertEqual(str(user), 'Carlos Mamani (@carlos123)')
+        self.assertEqual(user.reputation, 'MEDIA')
         self.assertTrue(user.check_password('Password123!'))
 
     def test_duplicate_email_fails(self):

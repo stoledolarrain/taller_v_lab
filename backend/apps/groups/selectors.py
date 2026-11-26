@@ -1,16 +1,19 @@
 from typing import Optional
 from decimal import Decimal
-from django.db.models import QuerySet, Sum
+from django.db.models import Count, F, QuerySet, Sum
 from rest_framework.exceptions import PermissionDenied, NotFound
 
 from apps.authentication.models import User
 from .models import (
     PasanakuGroup,
     GroupMembership,
+    GroupJoinRequest,
     PasanakuTurn,
     Round,
     Contribution,
     InternalReminder,
+    GroupStatus,
+    MembershipRole,
     RoundStatus,
     ContributionStatus,
 )
@@ -199,3 +202,36 @@ def group_get_financial_summary(*, group: PasanakuGroup, user: User) -> dict:
 def reminder_list_for_user(*, user: User) -> QuerySet[InternalReminder]:
     """Lista las notificaciones internas recibidas por el usuario."""
     return InternalReminder.objects.filter(recipient=user).select_related('group', 'round', 'sender').order_by('-created_at')
+
+
+def group_list_public(*, min_reputation: Optional[str] = None) -> QuerySet[PasanakuGroup]:
+    """Lista pasanakus públicos en BORRADOR que todavía tienen cupos disponibles."""
+    qs = PasanakuGroup.objects.filter(
+        is_public=True,
+        status=GroupStatus.BORRADOR,
+    ).annotate(
+        members_total=Count('memberships')
+    ).filter(
+        members_total__lt=F('total_members')
+    ).select_related('creator').prefetch_related('memberships__user')
+
+    if min_reputation:
+        qs = qs.filter(min_reputation=min_reputation.strip().upper())
+
+    return qs.order_by('-created_at')
+
+
+def join_request_list_for_group(*, group: PasanakuGroup, admin_user: User) -> QuerySet[GroupJoinRequest]:
+    """Lista las solicitudes de ingreso de un grupo (solo Administrador)."""
+    is_admin = group.memberships.filter(user=admin_user, role=MembershipRole.ADMIN).exists()
+    if not (is_admin or admin_user.is_staff):
+        raise PermissionDenied('Solo el administrador del grupo puede consultar las solicitudes de ingreso.')
+    return group.join_requests.select_related('user', 'reviewed_by').order_by('-created_at')
+
+
+def join_request_get_by_id(*, request_id: int) -> GroupJoinRequest:
+    """Obtiene una solicitud de ingreso por ID."""
+    join_req = GroupJoinRequest.objects.filter(id=request_id).select_related('group', 'user').first()
+    if not join_req:
+        raise NotFound('La solicitud de ingreso no existe.')
+    return join_req

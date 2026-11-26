@@ -1,6 +1,11 @@
 from django.urls import path
 from .views import (
     GroupListCreateAPIView,
+    PublicGroupListAPIView,
+    PublicGroupJoinAPIView,
+    GroupJoinRequestListAPIView,
+    JoinRequestApproveAPIView,
+    JoinRequestRejectAPIView,
     GroupDetailAPIView,
     GroupPreviewByCodeAPIView,
     GroupJoinAPIView,
@@ -27,9 +32,14 @@ app_name = 'groups'
 urlpatterns = [
     # Grupos y miembros
     path('', GroupListCreateAPIView.as_view(), name='list_create'),
+    path('public/', PublicGroupListAPIView.as_view(), name='public_list'),
     path('preview/', GroupPreviewByCodeAPIView.as_view(), name='preview'),
     path('join/', GroupJoinAPIView.as_view(), name='join'),
     path('<int:pk>/', GroupDetailAPIView.as_view(), name='detail'),
+    path('<int:pk>/join-public/', PublicGroupJoinAPIView.as_view(), name='public_join'),
+    path('<int:pk>/join-requests/', GroupJoinRequestListAPIView.as_view(), name='join_requests_list'),
+    path('join-requests/<int:pk>/approve/', JoinRequestApproveAPIView.as_view(), name='join_request_approve'),
+    path('join-requests/<int:pk>/reject/', JoinRequestRejectAPIView.as_view(), name='join_request_reject'),
     path('<int:pk>/regenerate-code/', GroupRegenerateInviteCodeAPIView.as_view(), name='regenerate_code'),
     path('<int:pk>/leave/', GroupLeaveAPIView.as_view(), name='leave'),
     path('<int:pk>/remove-member/', GroupRemoveMemberAPIView.as_view(), name='remove_member'),

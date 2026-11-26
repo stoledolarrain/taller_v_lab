@@ -12,6 +12,8 @@ from .serializers import (
     PasanakuGroupCreateInputSerializer,
     PasanakuGroupUpdateInputSerializer,
     JoinGroupInputSerializer,
+    JoinRequestMessageInputSerializer,
+    GroupJoinRequestSerializer,
     RemoveMemberInputSerializer,
     PasanakuTurnSerializer,
     TurnManualAssignInputSerializer,
@@ -26,6 +28,9 @@ from .services import (
     group_create,
     group_update,
     group_join_by_code,
+    group_join_or_request,
+    join_request_approve,
+    join_request_reject,
     group_regenerate_invite_code,
     group_leave,
     group_remove_member,
@@ -40,8 +45,11 @@ from .services import (
 )
 from .selectors import (
     group_list_for_user,
+    group_list_public,
     group_get_by_id,
     group_get_by_invite_code,
+    join_request_list_for_group,
+    join_request_get_by_id,
     turn_list_for_group,
     round_list_for_group,
     round_get_current,
@@ -161,7 +169,7 @@ class GroupPreviewByCodeAPIView(APIView):
 
 class GroupJoinAPIView(APIView):
     """
-    Unirse a un grupo mediante código de invitación.
+    Unirse a un grupo mediante código de invitación (aplica filtro de reputación).
     POST /api/v1/groups/join/
     """
     permission_classes = [IsAuthenticated]
@@ -170,10 +178,27 @@ class GroupJoinAPIView(APIView):
         serializer = JoinGroupInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        membership = group_join_by_code(
+        clean_code = serializer.validated_data['invite_code'].strip().upper()
+        group = group_get_by_invite_code(invite_code=clean_code)
+        membership, join_req = group_join_or_request(
             user=request.user,
-            invite_code=serializer.validated_data['invite_code']
+            group=group,
+            bypass_reputation=False,
+            message=serializer.validated_data.get('message', ''),
         )
+
+        if join_req is not None:
+            return Response(
+                {
+                    'message': (
+                        f'Tu reputación actual ({request.user.reputation}) es menor a la requerida '
+                        f'({group.min_reputation}). Se envió una solicitud al administrador.'
+                    ),
+                    'status': 'PENDING_APPROVAL',
+                    'join_request': GroupJoinRequestSerializer(join_req).data,
+                },
+                status=status.HTTP_202_ACCEPTED,
+            )
 
         detail_serializer = PasanakuGroupDetailSerializer(
             membership.group,
@@ -183,6 +208,117 @@ class GroupJoinAPIView(APIView):
             {
                 'message': f'Te has unido exitosamente al grupo "{membership.group.name}".',
                 'group': detail_serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class PublicGroupListAPIView(APIView):
+    """
+    Listar pasanakus públicos disponibles (paginado) con filtro opcional ?min_reputation=.
+    GET /api/v1/groups/public/?page=1&page_size=6&min_reputation=ALTA
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        min_rep = request.query_params.get('min_reputation')
+        groups = group_list_public(min_reputation=min_rep)
+        paginator = GroupPagination()
+        page = paginator.paginate_queryset(groups, request, view=self)
+        serializer = PasanakuGroupListSerializer(page, many=True, context={'request': request})
+        return paginator.get_paginated_response(serializer.data)
+
+
+class PublicGroupJoinAPIView(APIView):
+    """
+    Unirse o solicitar ingreso a un pasanaku público según reputación.
+    POST /api/v1/groups/<int:pk>/join-public/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk: int):
+        from .models import PasanakuGroup
+        from rest_framework.exceptions import NotFound
+
+        group = PasanakuGroup.objects.filter(id=pk, is_public=True).first()
+        if not group:
+            raise NotFound('El grupo público solicitado no existe.')
+
+        serializer = JoinRequestMessageInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        membership, join_req = group_join_or_request(
+            user=request.user,
+            group=group,
+            bypass_reputation=False,
+            message=serializer.validated_data.get('message', ''),
+        )
+
+        if join_req is not None:
+            return Response(
+                {
+                    'message': 'Solicitud enviada al administrador para aprobación previa.',
+                    'status': 'PENDING_APPROVAL',
+                    'join_request': GroupJoinRequestSerializer(join_req).data,
+                },
+                status=status.HTTP_202_ACCEPTED,
+            )
+
+        return Response(
+            {
+                'message': f'Te has unido exitosamente al grupo público "{membership.group.name}".',
+                'group': PasanakuGroupDetailSerializer(membership.group, context={'request': request}).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class GroupJoinRequestListAPIView(APIView):
+    """
+    Listar solicitudes de ingreso de un grupo (Solo Administrador).
+    GET /api/v1/groups/<int:pk>/join-requests/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk: int):
+        group = group_get_by_id(group_id=pk, user=request.user)
+        requests_qs = join_request_list_for_group(group=group, admin_user=request.user)
+        return Response(GroupJoinRequestSerializer(requests_qs, many=True).data, status=status.HTTP_200_OK)
+
+
+class JoinRequestApproveAPIView(APIView):
+    """
+    Aprobar solicitud de ingreso pendiente (Solo Administrador).
+    POST /api/v1/groups/join-requests/<int:pk>/approve/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk: int):
+        join_req = join_request_get_by_id(request_id=pk)
+        membership = join_request_approve(join_request=join_req, admin_user=request.user)
+        return Response(
+            {
+                'message': f'Solicitud aprobada: {membership.user.username} ahora es miembro del grupo.',
+                'group': PasanakuGroupDetailSerializer(membership.group, context={'request': request}).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class JoinRequestRejectAPIView(APIView):
+    """
+    Rechazar solicitud de ingreso pendiente (Solo Administrador).
+    POST /api/v1/groups/join-requests/<int:pk>/reject/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk: int):
+        join_req = join_request_get_by_id(request_id=pk)
+        rejected = join_request_reject(join_request=join_req, admin_user=request.user)
+        return Response(
+            {
+                'message': 'Solicitud rechazada.',
+                'join_request': GroupJoinRequestSerializer(rejected).data,
             },
             status=status.HTTP_200_OK,
         )

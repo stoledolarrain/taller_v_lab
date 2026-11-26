@@ -6,10 +6,11 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError, PermissionDenied, NotFound
 
-from apps.authentication.models import User
+from apps.authentication.models import User, ReputationLevel, REPUTATION_RANK
 from .models import (
     PasanakuGroup,
     GroupMembership,
+    GroupJoinRequest,
     PasanakuTurn,
     Round,
     Contribution,
@@ -18,6 +19,7 @@ from .models import (
     MembershipRole,
     RoundStatus,
     ContributionStatus,
+    JoinRequestStatus,
     generate_invite_code,
 )
 from .realtime import emit_group_event, emit_user_event
@@ -32,11 +34,14 @@ def group_create(
     periodicity: str,
     start_date: date,
     total_members: int,
-    description: str = ''
+    description: str = '',
+    is_public: bool = False,
+    min_reputation: Optional[str] = None,
 ) -> PasanakuGroup:
     """
     Crea un nuevo grupo de pasanaku en estado BORRADOR.
     Asigna automáticamente al creador como Administrador del grupo.
+    Si el creador tiene reputación ALTA y no se especifica min_reputation, el grupo exige ALTA.
     """
     if quota_amount <= Decimal('0.00'):
         raise ValidationError({'quota_amount': 'El monto de la cuota debe ser mayor a 0.'})
@@ -46,6 +51,15 @@ def group_create(
 
     if start_date < timezone.localdate():
         raise ValidationError({'start_date': 'La fecha de inicio no puede estar en el pasado.'})
+
+    if min_reputation is None:
+        effective_min_rep = (
+            ReputationLevel.ALTA
+            if creator.reputation == ReputationLevel.ALTA
+            else ReputationLevel.BAJA
+        )
+    else:
+        effective_min_rep = min_reputation
 
     group = PasanakuGroup.objects.create(
         creator=creator,
@@ -57,6 +71,8 @@ def group_create(
         total_members=total_members,
         status=GroupStatus.BORRADOR,
         invite_code=generate_invite_code(),
+        is_public=is_public,
+        min_reputation=effective_min_rep,
     )
 
     # El creador se registra como el primer integrante y Administrador del grupo
@@ -79,7 +95,9 @@ def group_update(
     quota_amount: Decimal = None,
     periodicity: str = None,
     start_date: date = None,
-    total_members: int = None
+    total_members: int = None,
+    is_public: Optional[bool] = None,
+    min_reputation: Optional[str] = None,
 ) -> PasanakuGroup:
     """
     Actualiza la configuración de un grupo.
@@ -124,6 +142,12 @@ def group_update(
                 )
             })
         group.total_members = total_members
+
+    if is_public is not None:
+        group.is_public = is_public
+
+    if min_reputation is not None:
+        group.min_reputation = min_reputation
 
     group.save()
     emit_group_event(
@@ -747,3 +771,177 @@ def reminder_mark_as_read(
     reminder.is_read = True
     reminder.save(update_fields=['is_read'])
     return reminder
+
+
+def _user_meets_reputation(user: User, group: PasanakuGroup) -> bool:
+    return REPUTATION_RANK.get(user.reputation, 1) >= REPUTATION_RANK.get(group.min_reputation, 1)
+
+
+@transaction.atomic
+def group_join_or_request(
+    *,
+    user: User,
+    group: PasanakuGroup,
+    bypass_reputation: bool = False,
+    message: str = '',
+) -> Tuple[Optional[GroupMembership], Optional[GroupJoinRequest]]:
+    """
+    Intenta unir al usuario al grupo aplicando el filtro de reputación.
+    - Si cumple la reputación (o bypass_reputation=True, ej. vía QR), entra directo.
+    - Si no cumple, crea una GroupJoinRequest en estado PENDIENTE para aprobación del admin.
+    """
+    if group.status != GroupStatus.BORRADOR:
+        raise ValidationError('No puedes unirte a un grupo que ya ha sido iniciado o finalizado.')
+
+    if GroupMembership.objects.filter(group=group, user=user).exists():
+        raise ValidationError({'user': 'Ya eres parte de este grupo de pasanaku.'})
+
+    if group.is_full:
+        raise ValidationError({
+            'group': f'El grupo ya completó el cupo acordado de {group.total_members} participantes.'
+        })
+
+    if bypass_reputation or _user_meets_reputation(user, group):
+        membership = GroupMembership.objects.create(
+            group=group,
+            user=user,
+            role=MembershipRole.PARTICIPANTE,
+        )
+        emit_group_event(
+            group_id=group.id,
+            event='member_joined',
+            data={
+                'user_id': user.id,
+                'username': user.username,
+                'remaining_slots': group.remaining_slots,
+                'is_full': group.is_full,
+            },
+        )
+        return membership, None
+
+    existing = GroupJoinRequest.objects.filter(group=group, user=user).first()
+    if existing:
+        if existing.status == JoinRequestStatus.PENDIENTE:
+            raise ValidationError('Ya tienes una solicitud pendiente de aprobación para este grupo.')
+        existing.status = JoinRequestStatus.PENDIENTE
+        existing.message = message.strip()
+        existing.reviewed_by = None
+        existing.reviewed_at = None
+        existing.save(update_fields=['status', 'message', 'reviewed_by', 'reviewed_at', 'updated_at'])
+        join_req = existing
+    else:
+        join_req = GroupJoinRequest.objects.create(
+            group=group,
+            user=user,
+            status=JoinRequestStatus.PENDIENTE,
+            message=message.strip(),
+        )
+
+    emit_group_event(
+        group_id=group.id,
+        event='join_request_created',
+        data={
+            'request_id': join_req.id,
+            'user_id': user.id,
+            'username': user.username,
+            'user_reputation': user.reputation,
+            'required_reputation': group.min_reputation,
+        },
+    )
+    return None, join_req
+
+
+@transaction.atomic
+def join_request_approve(
+    *,
+    join_request: GroupJoinRequest,
+    admin_user: User,
+) -> GroupMembership:
+    """Aprueba una solicitud pendiente y crea la membresía del solicitante atómicamente."""
+    group = join_request.group
+    is_admin = GroupMembership.objects.filter(
+        group=group, user=admin_user, role=MembershipRole.ADMIN
+    ).exists()
+    if not (is_admin or admin_user.is_staff):
+        raise PermissionDenied('Solo el administrador del grupo puede aprobar solicitudes.')
+
+    if join_request.status != JoinRequestStatus.PENDIENTE:
+        raise ValidationError(f'La solicitud ya fue procesada ({join_request.status}).')
+
+    if group.status != GroupStatus.BORRADOR:
+        raise ValidationError('No se pueden aprobar solicitudes de un grupo que ya inició.')
+
+    if group.is_full:
+        raise ValidationError('El grupo ya completó todos sus cupos disponibles.')
+
+    if GroupMembership.objects.filter(group=group, user=join_request.user).exists():
+        raise ValidationError('El usuario ya es miembro de este grupo.')
+
+    now = timezone.now()
+    join_request.status = JoinRequestStatus.APROBADA
+    join_request.reviewed_by = admin_user
+    join_request.reviewed_at = now
+    join_request.save(update_fields=['status', 'reviewed_by', 'reviewed_at', 'updated_at'])
+
+    membership = GroupMembership.objects.create(
+        group=group,
+        user=join_request.user,
+        role=MembershipRole.PARTICIPANTE,
+    )
+
+    emit_group_event(
+        group_id=group.id,
+        event='member_joined',
+        data={
+            'user_id': join_request.user_id,
+            'username': join_request.user.username,
+            'remaining_slots': group.remaining_slots,
+            'is_full': group.is_full,
+        },
+    )
+    emit_user_event(
+        user_id=join_request.user_id,
+        event='join_request_reviewed',
+        data={
+            'request_id': join_request.id,
+            'group_id': group.id,
+            'group_name': group.name,
+            'status': JoinRequestStatus.APROBADA,
+        },
+    )
+    return membership
+
+
+@transaction.atomic
+def join_request_reject(
+    *,
+    join_request: GroupJoinRequest,
+    admin_user: User,
+) -> GroupJoinRequest:
+    """Rechaza una solicitud pendiente de ingreso al grupo."""
+    group = join_request.group
+    is_admin = GroupMembership.objects.filter(
+        group=group, user=admin_user, role=MembershipRole.ADMIN
+    ).exists()
+    if not (is_admin or admin_user.is_staff):
+        raise PermissionDenied('Solo el administrador del grupo puede rechazar solicitudes.')
+
+    if join_request.status != JoinRequestStatus.PENDIENTE:
+        raise ValidationError(f'La solicitud ya fue procesada ({join_request.status}).')
+
+    join_request.status = JoinRequestStatus.RECHAZADA
+    join_request.reviewed_by = admin_user
+    join_request.reviewed_at = timezone.now()
+    join_request.save(update_fields=['status', 'reviewed_by', 'reviewed_at', 'updated_at'])
+
+    emit_user_event(
+        user_id=join_request.user_id,
+        event='join_request_reviewed',
+        data={
+            'request_id': join_request.id,
+            'group_id': group.id,
+            'group_name': group.name,
+            'status': JoinRequestStatus.RECHAZADA,
+        },
+    )
+    return join_request

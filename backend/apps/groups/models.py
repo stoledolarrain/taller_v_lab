@@ -4,6 +4,8 @@ from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator
 
+from apps.authentication.models import ReputationLevel
+
 
 class GroupStatus(models.TextChoices):
     BORRADOR = 'BORRADOR', 'Borrador'
@@ -30,6 +32,12 @@ class RoundStatus(models.TextChoices):
 class ContributionStatus(models.TextChoices):
     PENDIENTE = 'PENDIENTE', 'Pendiente'
     PAGADA = 'PAGADA', 'Pagada'
+
+
+class JoinRequestStatus(models.TextChoices):
+    PENDIENTE = 'PENDIENTE', 'Pendiente'
+    APROBADA = 'APROBADA', 'Aprobada'
+    RECHAZADA = 'RECHAZADA', 'Rechazada'
 
 
 def generate_invite_code() -> str:
@@ -87,6 +95,20 @@ class PasanakuGroup(models.Model):
         db_index=True,
         default=generate_invite_code,
         help_text='Código único para que otros participantes se unan al grupo.'
+    )
+
+    is_public = models.BooleanField(
+        'grupo público',
+        default=False,
+        help_text='Si es True, el grupo aparece en el listado público de pasanakus disponibles.'
+    )
+
+    min_reputation = models.CharField(
+        'reputación mínima requerida',
+        max_length=10,
+        choices=ReputationLevel.choices,
+        default=ReputationLevel.BAJA,
+        help_text='Reputación mínima para ingresar directo sin aprobación del administrador.'
     )
 
     creator = models.ForeignKey(
@@ -451,3 +473,54 @@ class InternalReminder(models.Model):
 
     def __str__(self):
         return f"Recordatorio para {self.recipient.username} en {self.group.name} (Ronda {self.round.round_number})"
+
+
+class GroupJoinRequest(models.Model):
+    """
+    Solicitud de ingreso cuando un usuario no cumple la reputación mínima del pasanaku
+    y requiere aprobación previa del administrador.
+    """
+    group = models.ForeignKey(
+        PasanakuGroup,
+        on_delete=models.CASCADE,
+        related_name='join_requests',
+        verbose_name='grupo'
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='group_join_requests',
+        verbose_name='solicitante'
+    )
+    status = models.CharField(
+        'estado de la solicitud',
+        max_length=20,
+        choices=JoinRequestStatus.choices,
+        default=JoinRequestStatus.PENDIENTE
+    )
+    message = models.CharField('mensaje opcional', max_length=255, blank=True, default='')
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_join_requests',
+        verbose_name='revisado por'
+    )
+    reviewed_at = models.DateTimeField('fecha de revisión', null=True, blank=True)
+    created_at = models.DateTimeField('fecha de solicitud', auto_now_add=True)
+    updated_at = models.DateTimeField('última actualización', auto_now=True)
+
+    class Meta:
+        verbose_name = 'Solicitud de Ingreso'
+        verbose_name_plural = 'Solicitudes de Ingreso'
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['group', 'user'],
+                name='unique_join_request_per_group'
+            )
+        ]
+
+    def __str__(self):
+        return f"Solicitud de {self.user.username} para {self.group.name} ({self.status})"

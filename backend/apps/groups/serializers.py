@@ -1,9 +1,11 @@
 from decimal import Decimal
 from rest_framework import serializers
+from apps.authentication.models import ReputationLevel
 from apps.authentication.serializers import UserSerializer
 from .models import (
     PasanakuGroup,
     GroupMembership,
+    GroupJoinRequest,
     PasanakuTurn,
     Round,
     Contribution,
@@ -170,6 +172,8 @@ class PasanakuGroupListSerializer(serializers.ModelSerializer):
             'has_all_turns_assigned',
             'can_start',
             'status',
+            'is_public',
+            'min_reputation',
             'my_role',
             'created_at',
         ]
@@ -217,6 +221,8 @@ class PasanakuGroupDetailSerializer(serializers.ModelSerializer):
             'can_start',
             'total_expected_per_round',
             'status',
+            'is_public',
+            'min_reputation',
             'invite_code',
             'is_admin',
             'memberships',
@@ -262,6 +268,8 @@ class PasanakuGroupPreviewSerializer(serializers.ModelSerializer):
             'remaining_slots',
             'is_full',
             'status',
+            'is_public',
+            'min_reputation',
             'creator_name',
         ]
 
@@ -277,6 +285,10 @@ class PasanakuGroupCreateInputSerializer(serializers.Serializer):
     periodicity = serializers.ChoiceField(choices=Periodicity.choices)
     start_date = serializers.DateField()
     total_members = serializers.IntegerField(min_value=2)
+    is_public = serializers.BooleanField(required=False, default=False)
+    min_reputation = serializers.ChoiceField(
+        choices=ReputationLevel.choices, required=False, allow_null=True, default=None
+    )
 
 
 class PasanakuGroupUpdateInputSerializer(serializers.Serializer):
@@ -287,11 +299,39 @@ class PasanakuGroupUpdateInputSerializer(serializers.Serializer):
     periodicity = serializers.ChoiceField(choices=Periodicity.choices, required=False)
     start_date = serializers.DateField(required=False)
     total_members = serializers.IntegerField(min_value=2, required=False)
+    is_public = serializers.BooleanField(required=False)
+    min_reputation = serializers.ChoiceField(choices=ReputationLevel.choices, required=False)
 
 
 class JoinGroupInputSerializer(serializers.Serializer):
     """Validador para unirse a un pasanaku con código de invitación."""
     invite_code = serializers.CharField(max_length=12, trim_whitespace=True)
+    message = serializers.CharField(required=False, allow_blank=True, max_length=255, default='')
+
+
+class JoinRequestMessageInputSerializer(serializers.Serializer):
+    """Validador opcional de mensaje al solicitar ingreso a un pasanaku público."""
+    message = serializers.CharField(required=False, allow_blank=True, max_length=255, default='')
+
+
+class GroupJoinRequestSerializer(serializers.ModelSerializer):
+    """Representación de una solicitud de ingreso pendiente o revisada."""
+    user = UserSerializer(read_only=True)
+    reviewed_by = UserSerializer(read_only=True)
+
+    class Meta:
+        model = GroupJoinRequest
+        fields = [
+            'id',
+            'group_id',
+            'user',
+            'status',
+            'message',
+            'reviewed_by',
+            'reviewed_at',
+            'created_at',
+        ]
+        read_only_fields = fields
 
 
 class RemoveMemberInputSerializer(serializers.Serializer):

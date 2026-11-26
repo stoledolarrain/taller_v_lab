@@ -57,6 +57,7 @@ jobs:
           pytest apps/groups/tests/test_unit_business_rules.py \
                  apps/groups/tests/test_unit_services_selectors.py \
                  apps/groups/tests/test_unit_websockets.py \
+                 apps/groups/tests/test_unit_groups_pagination.py \
                  apps/groups/tests/test_e2e_flows.py \
                  apps/authentication/tests/ \
                  --cov=apps \

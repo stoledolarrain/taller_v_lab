@@ -112,11 +112,7 @@ export const PublicGroupsList: React.FC<PublicGroupsListProps> = ({
         />
       ) : (
         <>
-          <ul
-            className="group-list__grid"
-            role="list"
-            data-testid="public-groups-grid"
-          >
+          <ul className="group-list__grid" role="list" data-testid="public-groups-grid">
             {groups.map((group) => {
               const totalEsperado = calcularTotalEsperado(
                 group.quota_amount,

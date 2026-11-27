@@ -22,7 +22,6 @@ class Migration(migrations.Migration):
             name='qr_token',
             field=models.CharField(
                 blank=True,
-                db_index=True,
                 max_length=32,
                 null=True,
                 verbose_name='token QR de ingreso directo',

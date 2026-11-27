@@ -31,7 +31,18 @@ const viewFromHash = (): DashboardView => {
  */
 export const UserDashboard: React.FC = () => {
   const { user } = useAuth();
-  const { groups, isLoading, error, fetchGroups, clearError } = useGroups();
+  const {
+    groups,
+    page,
+    totalCount,
+    hasNext,
+    hasPrevious,
+    setPage,
+    isLoading,
+    error,
+    fetchGroups,
+    clearError,
+  } = useGroups();
   const [view, setView] = useState<DashboardView>(viewFromHash);
 
   // Sincronizar la vista -> URL
@@ -144,6 +155,11 @@ export const UserDashboard: React.FC = () => {
       ) : (
         <GroupList
           groups={groups}
+          page={page}
+          totalCount={totalCount}
+          hasNext={hasNext}
+          hasPrevious={hasPrevious}
+          onPageChange={setPage}
           isLoading={isLoading}
           error={error}
           onSelectGroup={(id) => setView({ screen: 'detail', groupId: id })}

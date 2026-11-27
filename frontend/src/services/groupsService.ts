@@ -8,12 +8,19 @@ import type {
   JoinGroupInput,
   RemoveMemberInput,
   GroupFinancialSummary,
+  PaginatedResponse,
 } from '../types/groups';
 
 export const groupsService = {
-  /** GET /groups/ — List groups where authenticated user participates */
-  async listGroups(): Promise<GroupSummary[]> {
-    return apiRequest<GroupSummary[]>('/groups/');
+  /** GET /groups/ — List groups where authenticated user participates (paginated DRF) */
+  async listGroups(page = 1, pageSize = 6): Promise<PaginatedResponse<GroupSummary>> {
+    const res = await apiRequest<PaginatedResponse<GroupSummary> | GroupSummary[]>(
+      `/groups/?page=${page}&page_size=${pageSize}`
+    );
+    if (Array.isArray(res)) {
+      return { count: res.length, next: null, previous: null, results: res };
+    }
+    return res;
   },
 
   /** GET /groups/:id/ — Full group detail with members, turns and current round */

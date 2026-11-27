@@ -1,3 +1,5 @@
+export type ReputationLevel = 'BAJA' | 'MEDIA' | 'ALTA';
+
 export interface User {
   id: number;
   username: string;
@@ -7,6 +9,7 @@ export interface User {
   full_name: string;
   phone_number: string;
   ci: string;
+  reputation?: ReputationLevel;
   created_at: string;
 }
 

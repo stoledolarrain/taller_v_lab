@@ -1,4 +1,20 @@
-import type { User } from './auth';
+import type { User, ReputationLevel } from './auth';
+
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
+export function formatearReputacion(reputation?: ReputationLevel): string {
+  const mapa: Record<ReputationLevel, string> = {
+    ALTA: 'Alta',
+    MEDIA: 'Media',
+    BAJA: 'Baja',
+  };
+  return mapa[reputation ?? 'MEDIA'] ?? 'Media';
+}
 
 // ─── Enums (mirror backend TextChoices exactly) ───────────────────────────────
 export type GroupStatus = 'BORRADOR' | 'INICIADO' | 'FINALIZADO';

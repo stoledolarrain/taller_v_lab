@@ -7,6 +7,11 @@ import { EmptyState } from '../ui/EmptyState';
 
 interface GroupListProps {
   groups: GroupSummary[];
+  page?: number;
+  totalCount?: number;
+  hasNext?: boolean;
+  hasPrevious?: boolean;
+  onPageChange?: (page: number) => void;
   isLoading: boolean;
   error: string | null;
   onSelectGroup: (id: number) => void;
@@ -22,6 +27,11 @@ interface GroupListProps {
  */
 export const GroupList: React.FC<GroupListProps> = ({
   groups,
+  page = 1,
+  totalCount = groups.length,
+  hasNext = false,
+  hasPrevious = false,
+  onPageChange,
   isLoading,
   error,
   onSelectGroup,
@@ -29,6 +39,7 @@ export const GroupList: React.FC<GroupListProps> = ({
   onJoinGroup,
   onDismissError,
 }) => {
+  const totalPages = Math.max(1, Math.ceil(totalCount / 6));
   return (
     <section className="group-list" aria-label="Mis grupos de pasanaku">
       <div className="group-list__header">
@@ -75,17 +86,45 @@ export const GroupList: React.FC<GroupListProps> = ({
           }
         />
       ) : (
-        <ul
-          className="group-list__grid"
-          role="list"
-          aria-label={`${groups.length} grupo${groups.length !== 1 ? 's' : ''} encontrado${groups.length !== 1 ? 's' : ''}`}
-        >
-          {groups.map((group) => (
-            <li key={group.id} role="listitem">
-              <GroupCard group={group} onSelect={onSelectGroup} />
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul
+            className="group-list__grid"
+            role="list"
+            aria-label={`${groups.length} grupo${groups.length !== 1 ? 's' : ''} encontrado${groups.length !== 1 ? 's' : ''}`}
+          >
+            {groups.map((group) => (
+              <li key={group.id} role="listitem">
+                <GroupCard group={group} onSelect={onSelectGroup} />
+              </li>
+            ))}
+          </ul>
+
+          {onPageChange && (hasPrevious || hasNext || totalCount > 6) && (
+            <div className="pagination-controls" data-testid="groups-pagination">
+              <button
+                type="button"
+                className="secondary-btn"
+                disabled={!hasPrevious || isLoading}
+                onClick={() => onPageChange(page - 1)}
+                data-testid="pagination-prev-btn"
+              >
+                Anterior
+              </button>
+              <span className="pagination-info" data-testid="pagination-page-info">
+                Página {page} de {totalPages} ({totalCount} total)
+              </span>
+              <button
+                type="button"
+                className="secondary-btn"
+                disabled={!hasNext || isLoading}
+                onClick={() => onPageChange(page + 1)}
+                data-testid="pagination-next-btn"
+              >
+                Siguiente
+              </button>
+            </div>
+          )}
+        </>
       )}
     </section>
   );

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { ErrorMessage } from '../ui/ErrorMessage';
+import { formatearReputacion } from '../../types/groups';
 import type { GroupMembership } from '../../types/groups';
 
 interface MembersListProps {
@@ -91,6 +92,12 @@ export const MembersList: React.FC<MembersListProps> = ({
                     </span>
                     <span className="members-list__handle">
                       @{membership.user.username}
+                    </span>
+                    <span
+                      className={`reputation-badge reputation-badge--${(membership.user.reputation ?? 'MEDIA').toLowerCase()}`}
+                      data-testid={`member-reputation-${membership.user.id}`}
+                    >
+                      Rep: {formatearReputacion(membership.user.reputation)}
                     </span>
                   </span>
                 </div>

@@ -15,7 +15,7 @@ on:
 jobs:
   lint-and-build:
     name: Frontend Lint, Format & Production Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     defaults:
       run:
@@ -47,7 +47,7 @@ jobs:
   e2e-tests:
     name: Playwright End-to-End Tests (PDF Sec. 13)
     needs: lint-and-build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     env:
       DJANGO_SECRET_KEY: 'django-insecure-e2e-ci-test-key-taller-v'

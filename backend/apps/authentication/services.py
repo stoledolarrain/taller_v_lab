@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, Any, Tuple, Optional
 from django.db import transaction
 from django.contrib.auth import authenticate
@@ -5,6 +6,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.exceptions import ValidationError, AuthenticationFailed
 
 from .models import User
+
+logger = logging.getLogger(__name__)
 
 
 def get_tokens_for_user(user: User) -> Dict[str, str]:
@@ -57,6 +60,7 @@ def user_register(
     user.save()
 
     tokens = get_tokens_for_user(user)
+    logger.info('Usuario registrado: user_id=%s username=%s', user.id, user.username)
     return user, tokens
 
 
@@ -81,10 +85,12 @@ def user_authenticate(
     user = authenticate(username=target_username, password=password)
 
     if not user:
+        logger.warning('Login fallido para identificador=%s', clean_identifier)
         raise AuthenticationFailed('Credenciales inválidas. Verifica tu usuario/correo y contraseña.')
 
     if not user.is_active:
         raise AuthenticationFailed('Esta cuenta ha sido desactivada.')
 
     tokens = get_tokens_for_user(user)
+    logger.info('Login exitoso: user_id=%s username=%s', user.id, user.username)
     return user, tokens

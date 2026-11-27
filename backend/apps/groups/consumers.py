@@ -5,11 +5,15 @@ Endpoints:
   - ws/groups/<group_id>/?token=<jwt> : Sala de eventos en vivo del grupo (solo miembros).
   - ws/users/me/?token=<jwt>          : Canal personal de notificaciones y recordatorios.
 """
+import logging
+
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 
 from .models import GroupMembership
 from .realtime import group_channel_name, user_channel_name
+
+logger = logging.getLogger(__name__)
 
 
 @database_sync_to_async
@@ -29,16 +33,19 @@ class GroupConsumer(AsyncJsonWebsocketConsumer):
 
         user = self.scope.get('user')
         if not user or not user.is_authenticated:
+            logger.warning('WS group=%s rechazado (4001): sin autenticación', self.group_id)
             await self.close(code=4001)
             return
 
         if not await _is_group_member(self.group_id, user):
+            logger.warning('WS group=%s rechazado (4003): user_id=%s no es miembro', self.group_id, user.id)
             await self.close(code=4003)
             return
 
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         self.joined_room = True
         await self.accept()
+        logger.info('WS group=%s conectado: user_id=%s', self.group_id, user.id)
         await self.send_json({
             'event': 'connection_established',
             'group_id': self.group_id,

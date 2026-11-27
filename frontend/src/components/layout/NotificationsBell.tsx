@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useReminders } from '../../hooks/useReminders';
+import { useUserWebSocket } from '../../hooks/useUserWebSocket';
 
 /**
  * NotificationsBell — Icono de campana de notificaciones con popover accesible
@@ -8,9 +9,24 @@ import { useReminders } from '../../hooks/useReminders';
  */
 export const NotificationsBell: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [liveNotice, setLiveNotice] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { reminders, unreadCount, markAsRead, fetchReminders } = useReminders({
     autoFetch: true,
+  });
+
+  useUserWebSocket(true, (msg) => {
+    if (msg.event === 'reminder_received') {
+      fetchReminders();
+    } else if (msg.event === 'join_request_reviewed') {
+      const status = msg.data?.status;
+      setLiveNotice(
+        status === 'APROBADA'
+          ? 'Tu solicitud de ingreso fue aprobada.'
+          : 'Tu solicitud de ingreso fue rechazada.'
+      );
+      window.setTimeout(() => setLiveNotice(null), 5000);
+    }
   });
 
   useEffect(() => {
@@ -25,6 +41,15 @@ export const NotificationsBell: React.FC = () => {
 
   return (
     <div className="notifications-bell-wrapper" ref={containerRef}>
+      {liveNotice && (
+        <span
+          className="reputation-badge reputation-badge--alta"
+          role="status"
+          data-testid="ws-user-live-notice"
+        >
+          {liveNotice}
+        </span>
+      )}
       <button
         type="button"
         className="notifications-bell-btn"

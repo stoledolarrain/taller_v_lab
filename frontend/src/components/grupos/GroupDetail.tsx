@@ -5,6 +5,7 @@ import { useTurns } from '../../hooks/useTurns';
 import { useCurrentRound } from '../../hooks/useCurrentRound';
 import { useReminders } from '../../hooks/useReminders';
 import { useMyContributions } from '../../hooks/useMyContributions';
+import { useGroupWebSocket } from '../../hooks/useGroupWebSocket';
 import { GroupForm } from './GroupForm';
 import { MembersList } from './MembersList';
 import { InviteCodeDisplay } from './InviteCodeDisplay';
@@ -160,6 +161,23 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ groupId, onBack, onLef
       fetchSummary(groupId);
     }
   }, [isRunning, groupId, fetchSummary]);
+
+  // Suscripción WebSocket en tiempo real para actualizar estado del grupo sin recargar
+  useGroupWebSocket(groupId, (msg) => {
+    fetchGroup();
+    if (
+      msg.event === 'group_started' ||
+      msg.event === 'contribution_reported' ||
+      msg.event === 'contribution_validated' ||
+      msg.event === 'round_closed' ||
+      isRunning
+    ) {
+      fetchCurrentRound();
+      fetchHistory();
+      fetchSummary(groupId);
+      fetchMyContributions();
+    }
+  });
 
   if (isLoading) {
     return <LoadingSpinner message="Cargando grupo..." />;

@@ -61,6 +61,7 @@ jobs:
                  apps/groups/tests/test_unit_public_reputation_requests.py \
                  apps/groups/tests/test_unit_group_qr_join.py \
                  apps/groups/tests/test_unit_contribution_qr_payment.py \
+                 apps/groups/tests/test_unit_logging.py \
                  apps/groups/tests/test_e2e_flows.py \
                  apps/authentication/tests/ \
                  --cov=apps \

@@ -1,8 +1,11 @@
 from decimal import Decimal
 from datetime import date
 from typing import Optional, Tuple
+import logging
 import random
 from django.db import transaction
+
+logger = logging.getLogger(__name__)
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError, PermissionDenied, NotFound
 
@@ -84,6 +87,10 @@ def group_create(
         role=MembershipRole.ADMIN
     )
 
+    logger.info(
+        'Grupo creado: group_id=%s creator_id=%s is_public=%s min_reputation=%s',
+        group.id, creator.id, group.is_public, group.min_reputation,
+    )
     return group
 
 
@@ -519,6 +526,7 @@ def group_start(
             'beneficiary_id': turn_1.user_id,
         },
     )
+    logger.info('Pasanaku iniciado: group_id=%s admin_id=%s', group.id, admin_user.id)
 
     return group
 
@@ -697,6 +705,10 @@ def round_close_and_advance(
             'is_finished': next_round is None,
             'group_status': group.status,
         },
+    )
+    logger.info(
+        'Ronda cerrada: group_id=%s round_number=%s group_status=%s',
+        group.id, round_obj.round_number, group.status,
     )
 
     return round_obj, next_round
@@ -1065,5 +1077,9 @@ def contribution_confirm_qr_payment(*, qr_reference: str) -> Contribution:
             'qr_reference': contribution.qr_reference,
             'status': contribution.status,
         },
+    )
+    logger.info(
+        'Pago QR confirmado: contribution_id=%s group_id=%s user_id=%s',
+        contribution.id, contribution.round.group_id, contribution.user_id,
     )
     return contribution

@@ -1,8 +1,8 @@
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.pagination import PageNumberPagination
 
 from .serializers import (
@@ -41,6 +41,8 @@ from .services import (
     group_start,
     contribution_report_payment,
     contribution_validate_payment,
+    contribution_generate_qr_payment,
+    contribution_confirm_qr_payment,
     round_close_and_advance,
     reminder_create_for_pending,
     reminder_mark_as_read,
@@ -568,12 +570,95 @@ class ContributionPayAPIView(APIView):
         updated_contrib = contribution_report_payment(
             contribution=contribution,
             user=request.user,
-            notes=serializer.validated_data.get('notes', '')
+            notes=serializer.validated_data.get('notes', ''),
+            payment_method=serializer.validated_data.get('payment_method'),
         )
         return Response(
             {
                 'message': 'Pago de cuota reportado exitosamente.',
                 'contribution': ContributionSerializer(updated_contrib).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class ContributionGenerateQRAPIView(APIView):
+    """
+    Genera una referencia QR simulada para pagar una cuota desde el celular.
+    POST /api/v1/groups/contributions/<int:pk>/qr/generate/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk: int):
+        contribution = contribution_get_by_id(contribution_id=pk, user=request.user)
+        updated = contribution_generate_qr_payment(contribution=contribution, user=request.user)
+        return Response(
+            {
+                'qr_reference': updated.qr_reference,
+                'contribution_id': updated.id,
+                'group_id': updated.round.group_id,
+                'group_name': updated.round.group.name,
+                'round_number': updated.round.round_number,
+                'payer_name': updated.user.get_full_name() or updated.user.username,
+                'amount': str(updated.amount),
+                'currency': updated.round.group.currency,
+                'status': updated.status,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class PaymentQRDetailAPIView(APIView):
+    """
+    Consulta pública de un cobro QR escaneado desde el celular (sin requerir JWT).
+    GET /api/v1/groups/payments/qr/<str:qr_reference>/
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request, qr_reference: str):
+        from .models import Contribution
+
+        contribution = (
+            Contribution.objects.select_related('round__group', 'user')
+            .filter(qr_reference=qr_reference.strip())
+            .first()
+        )
+        if not contribution:
+            raise NotFound('La referencia de pago QR no existe o no es válida.')
+
+        return Response(
+            {
+                'qr_reference': contribution.qr_reference,
+                'group_name': contribution.round.group.name,
+                'round_number': contribution.round.round_number,
+                'payer_name': contribution.user.get_full_name() or contribution.user.username,
+                'amount': str(contribution.amount),
+                'currency': contribution.round.group.currency,
+                'payment_method': contribution.payment_method,
+                'status': contribution.status,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class PaymentQRConfirmAPIView(APIView):
+    """
+    Confirma el pago QR desde el botón en el celular (sin JWT) y notifica por WebSocket en vivo.
+    POST /api/v1/groups/payments/qr/<str:qr_reference>/confirm/
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request, qr_reference: str):
+        confirmed = contribution_confirm_qr_payment(qr_reference=qr_reference)
+        return Response(
+            {
+                'message': '¡Pago QR confirmado exitosamente!',
+                'qr_reference': confirmed.qr_reference,
+                'status': confirmed.status,
+                'amount': str(confirmed.amount),
+                'currency': confirmed.round.group.currency,
+                'group_name': confirmed.round.group.name,
+                'round_number': confirmed.round.round_number,
             },
             status=status.HTTP_200_OK,
         )

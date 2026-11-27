@@ -24,6 +24,9 @@ from .views import (
     RoundCloseAndAdvanceAPIView,
     ContributionPayAPIView,
     ContributionValidateAPIView,
+    ContributionGenerateQRAPIView,
+    PaymentQRDetailAPIView,
+    PaymentQRConfirmAPIView,
     GroupFinancialSummaryAPIView,
     GroupSendRemindersAPIView,
 )
@@ -68,4 +71,7 @@ urlpatterns = [
     path('rounds/<int:pk>/close/', RoundCloseAndAdvanceAPIView.as_view(), name='round_close'),
     path('contributions/<int:pk>/pay/', ContributionPayAPIView.as_view(), name='contribution_pay'),
     path('contributions/<int:pk>/validate/', ContributionValidateAPIView.as_view(), name='contribution_validate'),
+    path('contributions/<int:pk>/qr/generate/', ContributionGenerateQRAPIView.as_view(), name='contribution_qr_generate'),
+    path('payments/qr/<str:qr_reference>/', PaymentQRDetailAPIView.as_view(), name='payment_qr_detail'),
+    path('payments/qr/<str:qr_reference>/confirm/', PaymentQRConfirmAPIView.as_view(), name='payment_qr_confirm'),
 ]

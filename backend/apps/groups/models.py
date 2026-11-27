@@ -40,6 +40,11 @@ class JoinRequestStatus(models.TextChoices):
     RECHAZADA = 'RECHAZADA', 'Rechazada'
 
 
+class PaymentMethod(models.TextChoices):
+    EFECTIVO = 'EFECTIVO', 'Efectivo'
+    QR = 'QR', 'Código QR'
+
+
 def generate_invite_code() -> str:
     """Genera un código alfanumérico aleatorio y legible de 8 caracteres."""
     return secrets.token_hex(4).upper()
@@ -48,6 +53,11 @@ def generate_invite_code() -> str:
 def generate_qr_token() -> str:
     """Genera un token aleatorio exclusivo para ingreso directo mediante escaneo QR."""
     return secrets.token_urlsafe(16)
+
+
+def generate_qr_payment_reference() -> str:
+    """Genera una referencia criptográfica única para un cobro simulado por QR."""
+    return f"QR-{secrets.token_urlsafe(16)}"
 
 
 class PasanakuGroup(models.Model):
@@ -420,6 +430,22 @@ class Contribution(models.Model):
         max_length=255,
         blank=True,
         default=''
+    )
+    payment_method = models.CharField(
+        'método de pago',
+        max_length=20,
+        choices=PaymentMethod.choices,
+        default=PaymentMethod.EFECTIVO,
+        help_text='Medio seleccionado para el aporte (EFECTIVO o QR).'
+    )
+    qr_reference = models.CharField(
+        'referencia de pago QR',
+        max_length=64,
+        unique=True,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text='Token único del cobro QR simulado para confirmación desde celular.'
     )
 
     created_at = models.DateTimeField('fecha de creación', auto_now_add=True)

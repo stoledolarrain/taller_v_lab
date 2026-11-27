@@ -3,6 +3,7 @@
 Plataforma web para organizar, controlar y dar trazabilidad al ahorro grupal rotativo (**pasanaku**) en Bolivia. Proyecto final de la materia **Taller de Actualización V**.
 
 ## 🛠 Stack Tecnológico General
+
 - **Backend:** Python 3.15 + Django 5.x + Django REST Framework + SimpleJWT (`djangorestframework-simplejwt`).
 - **Frontend:** React 19 + TypeScript + Vite.
 - **Base de Datos:** PostgreSQL (con fallback local a SQLite en desarrollo).
@@ -11,8 +12,10 @@ Plataforma web para organizar, controlar y dar trazabilidad al ahorro grupal rot
 ---
 
 ## 🏛 Arquitectura General
+
 El proyecto se organiza como un monorepo desacoplado:
-- `/backend`: API REST construida bajo el patrón **Service Layer** (*HackSoftware Django Styleguide*).
+
+- `/backend`: API REST construida bajo el patrón **Service Layer** (_HackSoftware Django Styleguide_).
 - `/frontend`: SPA construida bajo el patrón **MVVM** (Model: types/api, ViewModel: hooks/context, View: componentes).
 - `/.claude`: Configuración, skills, agentes y comandos compartidos con el equipo.
 - `/docs`: Documentación técnica y reglas del negocio (ver `docs/backend.md` para detalles del backend).
@@ -20,6 +23,7 @@ El proyecto se organiza como un monorepo desacoplado:
 ---
 
 ## 🌿 Flujo de Trabajo con Git y Autorizaciones (Reglas Obligatorias)
+
 1. **Autorización Manual Obligatoria:** No se pueden hacer directamente commits ni pushes luego de terminar un nuevo feature o cambio al código; **se requiere autorización manual previa** del usuario, siguiendo las mejores prácticas de trabajo con IA y Git.
 2. **Uso Exclusivo de Ramas (Branches):** Cada nueva feature, refactorización, test o cambio **obligatoriamente debe ser realizado en una nueva rama** temática (`feat/...`, `test/...`, `fix/...`).
 3. **Merge a `main` vía Pull Request:** Queda terminantemente prohibido commitear o pushear directamente a `main`. Todo cambio debe pasar por un Pull Request (PR) y ser aprobado con un merge commit a la rama `main` tras validar los chequeos automáticos de CI.
@@ -28,7 +32,9 @@ El proyecto se organiza como un monorepo desacoplado:
 ---
 
 ## ⚖️ Reglas de Negocio Críticas del Pasanaku
+
 Cualquier código nuevo o refactorización DEBE respetar obligatoriamente estas invariantes del negocio:
+
 1. **Inmutabilidad Post-Inicio:** En estado `BORRADOR` se puede modificar monto, fecha, periodicidad y cupos. Una vez en `INICIADO`, **está estrictamente prohibido alterar arbitrariamente la configuración o turnos**.
 2. **Participantes Únicos:** Un usuario no puede pertenecer dos veces al mismo grupo (`unique_user_in_group`).
 3. **Turnos Únicos:** Cada integrante debe aparecer exactamente una vez como beneficiario dentro de la ronda completa.
@@ -41,6 +47,7 @@ Cualquier código nuevo o refactorización DEBE respetar obligatoriamente estas 
 ## 💻 Comandos Globales de Utilidad
 
 ### Backend (Django)
+
 ```bash
 cd backend
 .\.venv\Scripts\Activate.ps1        # Windows
@@ -53,8 +60,17 @@ pytest                              # Correr suite con Pytest (vía pytest.ini)
 ```
 
 ### Frontend (React + Vite)
+
 ```bash
 cd frontend
 npm run dev                         # Servidor en http://localhost:5173/
 npm run build                       # Compilación TypeScript y empaquetado de producción
 ```
+
+Approach
+Read existing files before writing. Don't re-read unless changed.
+Thorough in reasoning, concise in output.
+Skip files over 100KB unless required.
+No sycophantic openers or closing fluff.
+No emojis or em-dashes.
+Do not guess APIs, versions, flags, commit SHAs, or package names. Verify by reading code or docs before asserting.

@@ -20,7 +20,9 @@ from .models import (
     RoundStatus,
     ContributionStatus,
     JoinRequestStatus,
+    PaymentMethod,
     generate_invite_code,
+    generate_qr_payment_reference,
 )
 from .realtime import emit_group_event, emit_user_event
 
@@ -526,10 +528,11 @@ def contribution_report_payment(
     *,
     contribution: Contribution,
     user: User,
-    notes: str = ''
+    notes: str = '',
+    payment_method: Optional[str] = None,
 ) -> Contribution:
     """
-    Registra/reporta el pago de una cuota por parte del participante.
+    Registra/reporta el pago de una cuota por parte del participante (EFECTIVO o QR).
     """
     is_owner = contribution.user == user
     is_admin = GroupMembership.objects.filter(
@@ -550,8 +553,10 @@ def contribution_report_payment(
     contribution.payment_date = timezone.now()
     if notes:
         contribution.notes = notes.strip()
+    if payment_method:
+        contribution.payment_method = payment_method
 
-    contribution.save(update_fields=['payment_date', 'notes', 'updated_at'])
+    contribution.save(update_fields=['payment_date', 'notes', 'payment_method', 'updated_at'])
     emit_group_event(
         group_id=contribution.round.group_id,
         event='contribution_reported',
@@ -559,6 +564,7 @@ def contribution_report_payment(
             'contribution_id': contribution.id,
             'round_id': contribution.round_id,
             'user_id': contribution.user_id,
+            'payment_method': contribution.payment_method,
             'notes': contribution.notes,
         },
     )
@@ -974,3 +980,90 @@ def group_join_by_qr(
     ).update(status=JoinRequestStatus.APROBADA, reviewed_at=timezone.now())
 
     return membership
+
+
+@transaction.atomic
+def contribution_generate_qr_payment(
+    *,
+    contribution: Contribution,
+    user: User,
+) -> Contribution:
+    """
+    Genera una referencia única de cobro QR para que el participante escanee
+    desde su celular en la misma red y confirme el pago en vivo.
+    """
+    is_owner = contribution.user == user
+    is_admin = GroupMembership.objects.filter(
+        group=contribution.round.group,
+        user=user,
+        role=MembershipRole.ADMIN,
+    ).exists()
+
+    if not (is_owner or is_admin or user.is_staff):
+        raise PermissionDenied('No tienes autorización para generar el QR de este aporte.')
+
+    if not contribution.round.is_active:
+        raise ValidationError('No se puede generar un QR para una ronda que ya fue cerrada.')
+
+    if contribution.status == ContributionStatus.PAGADA:
+        raise ValidationError('Esta cuota ya se encuentra pagada.')
+
+    contribution.payment_method = PaymentMethod.QR
+    if not contribution.qr_reference:
+        contribution.qr_reference = generate_qr_payment_reference()
+    contribution.save(update_fields=['payment_method', 'qr_reference', 'updated_at'])
+    return contribution
+
+
+@transaction.atomic
+def contribution_confirm_qr_payment(*, qr_reference: str) -> Contribution:
+    """
+    Simula la confirmación de un pago QR escaneado desde el celular.
+    Valida la referencia, marca la cuota como PAGADA y emite WebSocket en vivo al grupo.
+    """
+    clean_ref = qr_reference.strip()
+    contribution = (
+        Contribution.objects.select_related('round__group', 'user')
+        .filter(qr_reference=clean_ref)
+        .first()
+    )
+    if not contribution:
+        raise NotFound('La referencia de pago QR no existe o no es válida.')
+
+    if not contribution.round.is_active:
+        raise ValidationError('No se puede confirmar un pago en una ronda que ya fue cerrada.')
+
+    if contribution.status == ContributionStatus.PAGADA:
+        raise ValidationError('Este pago QR ya fue confirmado anteriormente.')
+
+    now = timezone.now()
+    contribution.status = ContributionStatus.PAGADA
+    contribution.payment_method = PaymentMethod.QR
+    contribution.payment_date = now
+    contribution.validation_date = now
+    if not contribution.notes:
+        contribution.notes = 'Pago confirmado vía QR simulado'
+    contribution.save(
+        update_fields=[
+            'status',
+            'payment_method',
+            'payment_date',
+            'validation_date',
+            'notes',
+            'updated_at',
+        ]
+    )
+
+    emit_group_event(
+        group_id=contribution.round.group_id,
+        event='contribution_validated',
+        data={
+            'contribution_id': contribution.id,
+            'round_id': contribution.round_id,
+            'user_id': contribution.user_id,
+            'payment_method': PaymentMethod.QR,
+            'qr_reference': contribution.qr_reference,
+            'status': contribution.status,
+        },
+    )
+    return contribution

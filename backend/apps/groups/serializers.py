@@ -14,6 +14,7 @@ from .models import (
     MembershipRole,
     RoundStatus,
     ContributionStatus,
+    PaymentMethod,
 )
 
 
@@ -67,6 +68,8 @@ class ContributionSerializer(serializers.ModelSerializer):
             'payment_date',
             'validation_date',
             'validated_by',
+            'payment_method',
+            'qr_reference',
             'notes',
             'created_at',
             'updated_at',
@@ -81,6 +84,7 @@ class ContributionSerializer(serializers.ModelSerializer):
             'payment_date',
             'validation_date',
             'validated_by',
+            'qr_reference',
             'created_at',
             'updated_at',
         ]
@@ -357,7 +361,10 @@ class TurnManualAssignInputSerializer(serializers.Serializer):
 
 
 class ContributionReportInputSerializer(serializers.Serializer):
-    """Validador para registrar o reportar el pago de un aporte."""
+    """Validador para registrar o reportar el pago de un aporte (EFECTIVO o QR)."""
+    payment_method = serializers.ChoiceField(
+        choices=PaymentMethod.choices, required=False, default=PaymentMethod.EFECTIVO
+    )
     notes = serializers.CharField(required=False, allow_blank=True, max_length=255, default='')
 
 

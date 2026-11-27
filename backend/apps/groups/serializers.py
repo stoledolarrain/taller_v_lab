@@ -224,6 +224,7 @@ class PasanakuGroupDetailSerializer(serializers.ModelSerializer):
             'is_public',
             'min_reputation',
             'invite_code',
+            'qr_token',
             'is_admin',
             'memberships',
             'turns',
@@ -307,6 +308,11 @@ class JoinGroupInputSerializer(serializers.Serializer):
     """Validador para unirse a un pasanaku con código de invitación."""
     invite_code = serializers.CharField(max_length=12, trim_whitespace=True)
     message = serializers.CharField(required=False, allow_blank=True, max_length=255, default='')
+
+
+class JoinGroupByQRInputSerializer(serializers.Serializer):
+    """Validador para unirse automáticamente a un pasanaku escaneando su código QR."""
+    qr_token = serializers.CharField(max_length=32, trim_whitespace=True)
 
 
 class JoinRequestMessageInputSerializer(serializers.Serializer):

@@ -945,3 +945,32 @@ def join_request_reject(
         },
     )
     return join_request
+
+
+@transaction.atomic
+def group_join_by_qr(
+    *,
+    user: User,
+    qr_token: str,
+) -> GroupMembership:
+    """
+    Une automáticamente a un usuario al grupo mediante su token QR.
+    Omite el filtro de reputación y la aprobación previa del administrador,
+    manteniendo las invariantes críticas (estado BORRADOR, unicidad y cupos).
+    """
+    clean_token = qr_token.strip()
+    group = PasanakuGroup.objects.filter(qr_token=clean_token).first()
+    if not group:
+        raise ValidationError({'qr_token': 'El código QR no es válido o no corresponde a ningún grupo.'})
+
+    membership, _ = group_join_or_request(
+        user=user,
+        group=group,
+        bypass_reputation=True,
+    )
+
+    GroupJoinRequest.objects.filter(
+        group=group, user=user, status=JoinRequestStatus.PENDIENTE
+    ).update(status=JoinRequestStatus.APROBADA, reviewed_at=timezone.now())
+
+    return membership

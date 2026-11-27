@@ -59,6 +59,7 @@ jobs:
                  apps/groups/tests/test_unit_websockets.py \
                  apps/groups/tests/test_unit_groups_pagination.py \
                  apps/groups/tests/test_unit_public_reputation_requests.py \
+                 apps/groups/tests/test_unit_group_qr_join.py \
                  apps/groups/tests/test_e2e_flows.py \
                  apps/authentication/tests/ \
                  --cov=apps \

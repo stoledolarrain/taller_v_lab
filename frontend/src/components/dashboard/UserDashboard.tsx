@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useGroups } from '../../hooks/useGroups';
 import { GroupList } from '../grupos/GroupList';
+import { PublicGroupsList } from '../grupos/PublicGroupsList';
 import { GroupDetail } from '../grupos/GroupDetail';
 import { GroupForm } from '../grupos/GroupForm';
 import { JoinGroupForm } from '../grupos/JoinGroupForm';
@@ -9,6 +10,7 @@ import { LoadingSpinner } from '../ui/LoadingSpinner';
 
 type DashboardView =
   | { screen: 'list' }
+  | { screen: 'public' }
   | { screen: 'detail'; groupId: number }
   | { screen: 'create' }
   | { screen: 'join' };
@@ -142,6 +144,21 @@ export const UserDashboard: React.FC = () => {
     );
   }
 
+  if (view.screen === 'public') {
+    return (
+      <div className="dashboard-container">
+        <PublicGroupsList
+          onBack={() => {
+            setView({ screen: 'list' });
+            fetchGroups();
+          }}
+          onSelectGroup={(id) => setView({ screen: 'detail', groupId: id })}
+          onJoinedDirect={() => fetchGroups()}
+        />
+      </div>
+    );
+  }
+
   // ─── Vista principal: listado ─────────────────────────────────────────────
   return (
     <div className="dashboard-container" data-testid="dashboard-list-screen">
@@ -165,6 +182,7 @@ export const UserDashboard: React.FC = () => {
           onSelectGroup={(id) => setView({ screen: 'detail', groupId: id })}
           onCreateGroup={() => setView({ screen: 'create' })}
           onJoinGroup={() => setView({ screen: 'join' })}
+          onExplorePublic={() => setView({ screen: 'public' })}
           onDismissError={clearError}
         />
       )}

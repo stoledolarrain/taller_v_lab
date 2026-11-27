@@ -1,4 +1,5 @@
 import { apiRequest } from './apiClient';
+import type { ReputationLevel } from '../types/auth';
 import type {
   GroupSummary,
   GroupDetail,
@@ -6,6 +7,8 @@ import type {
   CreateGroupInput,
   UpdateGroupInput,
   JoinGroupInput,
+  JoinGroupResponse,
+  GroupJoinRequest,
   RemoveMemberInput,
   GroupFinancialSummary,
   PaginatedResponse,
@@ -16,6 +19,28 @@ export const groupsService = {
   async listGroups(page = 1, pageSize = 6): Promise<PaginatedResponse<GroupSummary>> {
     const res = await apiRequest<PaginatedResponse<GroupSummary> | GroupSummary[]>(
       `/groups/?page=${page}&page_size=${pageSize}`
+    );
+    if (Array.isArray(res)) {
+      return { count: res.length, next: null, previous: null, results: res };
+    }
+    return res;
+  },
+
+  /** GET /groups/public/ — List available public groups (paginated + optional min_reputation filter) */
+  async listPublicGroups(
+    page = 1,
+    minReputation?: ReputationLevel | '',
+    pageSize = 6
+  ): Promise<PaginatedResponse<GroupSummary>> {
+    const query = new URLSearchParams({
+      page: String(page),
+      page_size: String(pageSize),
+    });
+    if (minReputation) {
+      query.set('min_reputation', minReputation);
+    }
+    const res = await apiRequest<PaginatedResponse<GroupSummary> | GroupSummary[]>(
+      `/groups/public/?${query.toString()}`
     );
     if (Array.isArray(res)) {
       return { count: res.length, next: null, previous: null, results: res };
@@ -56,12 +81,42 @@ export const groupsService = {
     return apiRequest<GroupPreview>(`/groups/preview/?code=${encodeURIComponent(code)}`);
   },
 
-  /** POST /groups/join/ — Join a group using an invite code */
-  async joinGroup(input: JoinGroupInput): Promise<{ message: string }> {
-    return apiRequest<{ message: string }>('/groups/join/', {
+  /** POST /groups/join/ — Join a group using an invite code (200 direct or 202 pending request) */
+  async joinGroup(input: JoinGroupInput): Promise<JoinGroupResponse> {
+    return apiRequest<JoinGroupResponse>('/groups/join/', {
       method: 'POST',
       body: JSON.stringify(input),
     });
+  },
+
+  /** POST /groups/:id/join-public/ — Join or request to join a public group */
+  async joinPublicGroup(id: number, message?: string): Promise<JoinGroupResponse> {
+    return apiRequest<JoinGroupResponse>(`/groups/${id}/join-public/`, {
+      method: 'POST',
+      body: JSON.stringify(message ? { message } : {}),
+    });
+  },
+
+  /** GET /groups/:id/join-requests/ — List join requests for a group (admin only) */
+  async listJoinRequests(groupId: number): Promise<GroupJoinRequest[]> {
+    return apiRequest<GroupJoinRequest[]>(`/groups/${groupId}/join-requests/`);
+  },
+
+  /** POST /groups/join-requests/:requestId/approve/ — Approve a pending join request */
+  async approveJoinRequest(requestId: number): Promise<JoinGroupResponse> {
+    return apiRequest<JoinGroupResponse>(`/groups/join-requests/${requestId}/approve/`, {
+      method: 'POST',
+    });
+  },
+
+  /** POST /groups/join-requests/:requestId/reject/ — Reject a pending join request */
+  async rejectJoinRequest(
+    requestId: number
+  ): Promise<{ message: string; join_request: GroupJoinRequest }> {
+    return apiRequest<{ message: string; join_request: GroupJoinRequest }>(
+      `/groups/join-requests/${requestId}/reject/`,
+      { method: 'POST' }
+    );
   },
 
   /** POST /groups/:id/leave/ — Leave a group (only allowed in BORRADOR) */

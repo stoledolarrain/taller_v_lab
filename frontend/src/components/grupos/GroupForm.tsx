@@ -5,8 +5,10 @@ import {
   calcularTotalEsperado,
   formatearMontoBolivianos,
   formatearPeriodicidad,
+  formatearReputacion,
 } from '../../types/groups';
 import type { Periodicity } from '../../types/groups';
+import type { ReputationLevel } from '../../types/auth';
 
 interface GroupFormProps {
   /** Si se proporciona, el formulario edita un grupo existente (PATCH) */
@@ -18,6 +20,8 @@ interface GroupFormProps {
     periodicity?: Periodicity;
     start_date?: string;
     total_members?: string;
+    is_public?: boolean;
+    min_reputation?: ReputationLevel;
   };
   /** Si false, el formulario se renderiza en modo solo lectura */
   isEditable?: boolean;
@@ -29,6 +33,12 @@ const PERIODICIDADES: { value: Periodicity; label: string }[] = [
   { value: 'SEMANAL', label: formatearPeriodicidad('SEMANAL') },
   { value: 'QUINCENAL', label: formatearPeriodicidad('QUINCENAL') },
   { value: 'MENSUAL', label: formatearPeriodicidad('MENSUAL') },
+];
+
+const REPUTACIONES: { value: ReputationLevel; label: string }[] = [
+  { value: 'BAJA', label: 'Baja (Cualquier usuario)' },
+  { value: 'MEDIA', label: 'Media (Reputación estándar)' },
+  { value: 'ALTA', label: 'Alta (Solo usuarios con reputación Alta)' },
 ];
 
 /**
@@ -101,6 +111,13 @@ export const GroupForm: React.FC<GroupFormProps> = ({
         <div className="form-group">
           <span className="form-label">Participantes</span>
           <span className="form-readonly-value">{values.total_members || '-'}</span>
+        </div>
+        <div className="form-group">
+          <span className="form-label">Visibilidad</span>
+          <span className="form-readonly-value">
+            {values.is_public ? 'Público' : 'Privado'} · Reputación mínima:{' '}
+            {formatearReputacion(values.min_reputation)}
+          </span>
         </div>
         <p className="group-form__lock-notice" role="note">
           La configuración no puede modificarse una vez que el pasanaku ha iniciado.
@@ -254,6 +271,43 @@ export const GroupForm: React.FC<GroupFormProps> = ({
               {errors.total_members}
             </span>
           )}
+        </div>
+      </div>
+
+      <div className="form-row">
+        {/* Visibilidad publica */}
+        <div className="form-group">
+          <label htmlFor="group-is-public" className="checkbox-label">
+            <input
+              id="group-is-public"
+              type="checkbox"
+              checked={values.is_public}
+              onChange={(e) => handleChange('is_public', e.target.checked)}
+              disabled={isSubmitting}
+              data-testid="group-is-public-checkbox"
+            />{' '}
+            Pasanaku Público (visible para explorar)
+          </label>
+        </div>
+
+        {/* Reputación mínima */}
+        <div className="form-group">
+          <label htmlFor="group-min-reputation">Reputación mínima requerida</label>
+          <select
+            id="group-min-reputation"
+            value={values.min_reputation}
+            onChange={(e) =>
+              handleChange('min_reputation', e.target.value as ReputationLevel)
+            }
+            disabled={isSubmitting}
+            data-testid="group-min-reputation-select"
+          >
+            {REPUTACIONES.map((r) => (
+              <option key={r.value} value={r.value}>
+                {r.label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 

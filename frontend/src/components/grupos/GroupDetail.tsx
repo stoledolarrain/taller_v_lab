@@ -8,6 +8,7 @@ import { useMyContributions } from '../../hooks/useMyContributions';
 import { GroupForm } from './GroupForm';
 import { MembersList } from './MembersList';
 import { InviteCodeDisplay } from './InviteCodeDisplay';
+import { JoinRequestsPanel } from './JoinRequestsPanel';
 import { TurnsList } from '../turnos/TurnsList';
 import { CurrentRound } from '../rondas/CurrentRound';
 import { RoundHistory } from '../rondas/RoundHistory';
@@ -24,6 +25,7 @@ import {
   formatearPeriodicidad,
   calcularTotalEsperado,
   formatearMontoBolivianos,
+  formatearReputacion,
 } from '../../types/groups';
 
 interface GroupDetailProps {
@@ -47,11 +49,15 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ groupId, onBack, onLef
   const { user } = useAuth();
   const {
     group,
+    joinRequests,
+    actionRequestId,
     isLoading,
     error,
     isAdmin,
     isEditable,
     fetchGroup,
+    approveJoinRequest,
+    rejectJoinRequest,
     leaveGroup,
     removeMember,
     regenerateCode,
@@ -323,6 +329,13 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ groupId, onBack, onLef
             <dt>Fecha de Inicio</dt>
             <dd>{group.start_date}</dd>
           </div>
+          <div className="group-detail__summary-item">
+            <dt>Visibilidad / Reputación Mín.</dt>
+            <dd data-testid="group-detail-visibility">
+              {group.is_public ? 'Público' : 'Privado'} ·{' '}
+              {formatearReputacion(group.min_reputation)}
+            </dd>
+          </div>
         </dl>
       </section>
 
@@ -469,6 +482,16 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ groupId, onBack, onLef
         </section>
       )}
 
+      {/* Solicitudes de ingreso pendientes — solo admin en BORRADOR */}
+      {isAdmin && isEditable && (
+        <JoinRequestsPanel
+          requests={joinRequests}
+          actionRequestId={actionRequestId}
+          onApprove={approveJoinRequest}
+          onReject={rejectJoinRequest}
+        />
+      )}
+
       {/* Lista de miembros */}
       {user && (
         <section aria-label="Participantes del grupo">
@@ -606,6 +629,8 @@ export const GroupDetail: React.FC<GroupDetailProps> = ({ groupId, onBack, onLef
               periodicity: group.periodicity,
               start_date: group.start_date,
               total_members: String(group.total_members),
+              is_public: group.is_public ?? false,
+              min_reputation: group.min_reputation ?? 'BAJA',
             }}
             isEditable
             onSuccess={() => {

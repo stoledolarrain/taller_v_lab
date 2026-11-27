@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { groupsService } from '../services/groupsService';
 import { ApiError } from '../services/apiClient';
+import type { ReputationLevel } from '../types/auth';
 import type { CreateGroupInput, UpdateGroupInput, Periodicity } from '../types/groups';
 
 // ─── Form shape ───────────────────────────────────────────────────────────────
@@ -11,6 +12,8 @@ export interface GroupFormValues {
   periodicity: Periodicity;
   start_date: string;
   total_members: string; // String for input binding; parsed on submit
+  is_public: boolean;
+  min_reputation: ReputationLevel;
 }
 
 export interface GroupFormErrors {
@@ -33,7 +36,7 @@ interface UseGroupFormReturn {
   errors: GroupFormErrors;
   isSubmitting: boolean;
   submitError: string | null;
-  handleChange: (field: keyof GroupFormValues, value: string) => void;
+  handleChange: (field: keyof GroupFormValues, value: string | boolean) => void;
   handleSubmit: (e: React.FormEvent) => Promise<void>;
   resetForm: () => void;
   clearSubmitError: () => void;
@@ -46,6 +49,8 @@ const DEFAULT_VALUES: GroupFormValues = {
   periodicity: 'MENSUAL',
   start_date: '',
   total_members: '2',
+  is_public: false,
+  min_reputation: 'BAJA',
 };
 
 /**
@@ -97,10 +102,13 @@ export function useGroupForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const handleChange = useCallback((field: keyof GroupFormValues, value: string) => {
-    setValues((prev) => ({ ...prev, [field]: value }));
-    setErrors((prev) => ({ ...prev, [field]: undefined }));
-  }, []);
+  const handleChange = useCallback(
+    (field: keyof GroupFormValues, value: string | boolean) => {
+      setValues((prev) => ({ ...prev, [field]: value }));
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
+    },
+    []
+  );
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -123,6 +131,8 @@ export function useGroupForm({
             periodicity: values.periodicity,
             start_date: values.start_date,
             total_members: parseInt(values.total_members, 10),
+            is_public: values.is_public,
+            min_reputation: values.min_reputation,
           };
           await groupsService.updateGroup(groupId, payload);
         } else {
@@ -133,6 +143,8 @@ export function useGroupForm({
             periodicity: values.periodicity,
             start_date: values.start_date,
             total_members: parseInt(values.total_members, 10),
+            is_public: values.is_public,
+            min_reputation: values.min_reputation,
           };
           await groupsService.createGroup(payload);
         }

@@ -19,10 +19,29 @@ export function formatearReputacion(reputation?: ReputationLevel): string {
 // ─── Enums (mirror backend TextChoices exactly) ───────────────────────────────
 export type GroupStatus = 'BORRADOR' | 'INICIADO' | 'FINALIZADO';
 export type Periodicity = 'SEMANAL' | 'QUINCENAL' | 'MENSUAL';
-export type MembershipRole = 'ADMIN' | 'PARTICIPANTE';
+export type MembershipRole = 'ADMIN' | 'PARTICIPANTE' | 'NO_MIEMBRO' | 'INVITADO';
 // Refleja exactamente RoundStatus del backend (apps/groups/models.py)
 export type RoundStatus = 'ACTIVA' | 'CERRADA';
 export type ContributionStatus = 'PENDIENTE' | 'PAGADA';
+export type JoinRequestStatus = 'PENDIENTE' | 'APROBADA' | 'RECHAZADA';
+
+export interface GroupJoinRequest {
+  id: number;
+  group_id: number;
+  user: User;
+  status: JoinRequestStatus;
+  message: string;
+  reviewed_by: User | null;
+  reviewed_at: string | null;
+  created_at: string;
+}
+
+export interface JoinGroupResponse {
+  message: string;
+  status?: 'PENDING_APPROVAL';
+  join_request?: GroupJoinRequest;
+  group?: GroupDetail;
+}
 
 // ─── Membership ───────────────────────────────────────────────────────────────
 export interface GroupMembership {
@@ -75,6 +94,8 @@ export interface GroupSummary {
   can_start: boolean;
   has_all_turns_assigned: boolean;
   status: GroupStatus;
+  is_public?: boolean;
+  min_reputation?: ReputationLevel;
   my_role: MembershipRole;
   invite_code: string;
   created_at: string;
@@ -84,6 +105,7 @@ export interface GroupSummary {
 // ─── Group Detail (PasanakuGroupDetailSerializer) ─────────────────────────────
 export interface GroupDetail extends GroupSummary {
   is_admin: boolean;
+  qr_token?: string;
   members: GroupMembership[];
   memberships?: GroupMembership[];
   turns: PasanakuTurn[];
@@ -104,6 +126,8 @@ export interface GroupPreview {
   remaining_slots: number;
   is_full: boolean;
   status: GroupStatus;
+  is_public?: boolean;
+  min_reputation?: ReputationLevel;
   creator_name: string;
 }
 
@@ -115,12 +139,15 @@ export interface CreateGroupInput {
   periodicity: Periodicity;
   start_date: string;
   total_members: number;
+  is_public?: boolean;
+  min_reputation?: ReputationLevel;
 }
 
 export type UpdateGroupInput = Partial<CreateGroupInput>;
 
 export interface JoinGroupInput {
   invite_code: string;
+  message?: string;
 }
 
 export interface RemoveMemberInput {

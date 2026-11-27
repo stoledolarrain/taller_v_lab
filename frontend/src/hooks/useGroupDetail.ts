@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { groupsService } from '../services/groupsService';
 import { ApiError } from '../services/apiClient';
-import type { GroupDetail } from '../types/groups';
+import type { GroupDetail, GroupJoinRequest } from '../types/groups';
 
 interface UseGroupDetailReturn {
   group: GroupDetail | null;
+  joinRequests: GroupJoinRequest[];
+  actionRequestId: number | null;
   isLoading: boolean;
   error: string | null;
   // Derived state — computed from group data, never stored separately
@@ -13,6 +15,9 @@ interface UseGroupDetailReturn {
   canStart: boolean;
   // Actions
   fetchGroup: () => Promise<void>;
+  fetchJoinRequests: () => Promise<void>;
+  approveJoinRequest: (requestId: number) => Promise<void>;
+  rejectJoinRequest: (requestId: number) => Promise<void>;
   leaveGroup: () => Promise<void>;
   removeMember: (userId: number) => Promise<void>;
   regenerateCode: () => Promise<void>;
@@ -22,6 +27,8 @@ interface UseGroupDetailReturn {
 
 export function useGroupDetail(groupId: number): UseGroupDetailReturn {
   const [group, setGroup] = useState<GroupDetail | null>(null);
+  const [joinRequests, setJoinRequests] = useState<GroupJoinRequest[]>([]);
+  const [actionRequestId, setActionRequestId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,12 +37,25 @@ export function useGroupDetail(groupId: number): UseGroupDetailReturn {
   const isEditable = group?.status === 'BORRADOR';
   const canStart = group?.can_start ?? false;
 
+  const fetchJoinRequests = useCallback(async () => {
+    try {
+      const reqs = await groupsService.listJoinRequests(groupId);
+      setJoinRequests(reqs);
+    } catch {
+      // Silenciar cuando el usuario no es admin
+    }
+  }, [groupId]);
+
   const fetchGroup = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
       const data = await groupsService.getGroup(groupId);
       setGroup(data);
+      if (data.is_admin && data.status === 'BORRADOR') {
+        const reqs = await groupsService.listJoinRequests(groupId);
+        setJoinRequests(reqs);
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         setError(
@@ -52,6 +72,48 @@ export function useGroupDetail(groupId: number): UseGroupDetailReturn {
       setIsLoading(false);
     }
   }, [groupId]);
+
+  const approveJoinRequest = useCallback(
+    async (requestId: number) => {
+      setActionRequestId(requestId);
+      setError(null);
+      try {
+        await groupsService.approveJoinRequest(requestId);
+        await fetchGroup();
+      } catch (err) {
+        if (err instanceof ApiError) {
+          setError(err.message);
+        } else {
+          setError('Error al aprobar la solicitud.');
+        }
+        throw err;
+      } finally {
+        setActionRequestId(null);
+      }
+    },
+    [fetchGroup]
+  );
+
+  const rejectJoinRequest = useCallback(
+    async (requestId: number) => {
+      setActionRequestId(requestId);
+      setError(null);
+      try {
+        await groupsService.rejectJoinRequest(requestId);
+        await fetchJoinRequests();
+      } catch (err) {
+        if (err instanceof ApiError) {
+          setError(err.message);
+        } else {
+          setError('Error al rechazar la solicitud.');
+        }
+        throw err;
+      } finally {
+        setActionRequestId(null);
+      }
+    },
+    [fetchJoinRequests]
+  );
 
   const leaveGroup = useCallback(async () => {
     setError(null);
@@ -124,12 +186,17 @@ export function useGroupDetail(groupId: number): UseGroupDetailReturn {
 
   return {
     group,
+    joinRequests,
+    actionRequestId,
     isLoading,
     error,
     isAdmin,
     isEditable,
     canStart,
     fetchGroup,
+    fetchJoinRequests,
+    approveJoinRequest,
+    rejectJoinRequest,
     leaveGroup,
     removeMember,
     regenerateCode,

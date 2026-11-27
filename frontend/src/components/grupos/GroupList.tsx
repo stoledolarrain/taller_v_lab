@@ -17,6 +17,7 @@ interface GroupListProps {
   onSelectGroup: (id: number) => void;
   onCreateGroup: () => void;
   onJoinGroup: () => void;
+  onExplorePublic?: () => void;
   onDismissError?: () => void;
 }
 
@@ -37,6 +38,7 @@ export const GroupList: React.FC<GroupListProps> = ({
   onSelectGroup,
   onCreateGroup,
   onJoinGroup,
+  onExplorePublic,
   onDismissError,
 }) => {
   const totalPages = Math.max(1, Math.ceil(totalCount / 6));
@@ -45,6 +47,16 @@ export const GroupList: React.FC<GroupListProps> = ({
       <div className="group-list__header">
         <h2 className="group-list__title">Mis Pasanakus</h2>
         <div className="group-list__actions">
+          {onExplorePublic && (
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={onExplorePublic}
+              data-testid="explore-public-groups-btn"
+            >
+              Explorar públicos
+            </button>
+          )}
           <button
             type="button"
             className="secondary-btn"

@@ -28,6 +28,7 @@ export const JoinGroupForm: React.FC<JoinGroupFormProps> = ({ onSuccess, onCance
     isPreviewing,
     isJoining,
     error,
+    pendingApprovalMessage,
     previewByCode,
     confirmJoin,
     resetJoin,
@@ -64,6 +65,16 @@ export const JoinGroupForm: React.FC<JoinGroupFormProps> = ({ onSuccess, onCance
       </div>
 
       {error && <ErrorMessage message={error} onDismiss={clearError} />}
+
+      {pendingApprovalMessage && (
+        <div
+          className="success-alert"
+          role="status"
+          data-testid="join-pending-approval-alert"
+        >
+          <span>{pendingApprovalMessage}</span>
+        </div>
+      )}
 
       {/* Paso 1: Formulario de búsqueda por código */}
       {!preview && (
